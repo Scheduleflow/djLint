@@ -221,7 +221,7 @@ def indent_html(rawcode: str, config: Config) -> str:
 
         if config.profile == "jshtml":
             func = partial(_format_jshtml_tags, indent, indent_level, config)
-            tmp = re.sub(r"({{\s*)([\s\S]*?)(\s*}})", func, tmp)
+            tmp = re.sub(r"([^\n\r]*)({{\s*)([\s\S]*?)(\s*}})", func, tmp)
 
         beautified_code = beautified_code + tmp
 
@@ -285,16 +285,18 @@ def _format_jshtml_tags(
         match: re.Match
 ) -> str:
 
-    js = match.group(2)
+    lead = match.group(1)
+
+    js = match.group(3)
 
     if not js:
         return match.group()
 
     opts = BeautifierOptions({
         "indent_size": len(indent),
-        "indent_level": indent_level,
+        "indent_level": 0,
         "preserve_newlines": False,
         "wrap_line_length": config.max_line_length,
     })
-    res = jsbeautifier.beautify(js, opts)
-    return "{{ " + res.lstrip(" ") + " }}"
+    lines = jsbeautifier.beautify(js, opts).splitlines()
+    return lead + "{{ " + ('\n' + ' ' * len(lead)).join(lines) + " }}"
