@@ -168,4 +168,15 @@ def condense_html(html: str, config: Config) -> str:
         html,
     )
 
+    if config.profile == "jshtml":
+
+        def flatten_jshtml_placeholders(match):
+            return re.sub(r"[\r\n]+", " ", match.group())
+
+        html = re.sub(
+            r"({{\s*)([\s\S]*?)(\s*}})",
+            flatten_jshtml_placeholders,
+            html
+        )
+
     return html
