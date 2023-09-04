@@ -220,13 +220,7 @@ def indent_html(rawcode: str, config: Config) -> str:
                 is_block_raw = False
 
         if config.profile == "jshtml":
-            func = partial(
-                _format_jshtml_tags,
-                indent,
-                indent_level,
-                config,
-                beautified_code
-            )
+            func = partial(_format_jshtml_tags, indent, indent_level, config)
             tmp = re.sub(r"({{\s*)([\s\S]+?)(\s*}})", func, tmp)
 
         beautified_code = beautified_code + tmp
@@ -287,7 +281,8 @@ def indent_html(rawcode: str, config: Config) -> str:
 def _format_jshtml_tags(
         indent: str,
         indent_level: int,
-        config: Config, match: re.Match
+        config: Config,
+        match: re.Match
 ) -> str:
 
     opts = BeautifierOptions({
