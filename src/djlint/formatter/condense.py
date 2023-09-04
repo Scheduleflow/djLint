@@ -174,9 +174,10 @@ def condense_html(html: str, config: Config) -> str:
             return re.sub(r"[\r\n]+", " ", match.group())
 
         html = re.sub(
-            r"({{\s*)([\s\S]*?)(\s*}})",
+            r"({[{%]\s*)([\s\S]*?)(\s*[}%]})",
             flatten_jshtml_placeholders,
             html
         )
 
     return html
+
