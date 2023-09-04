@@ -4,6 +4,10 @@ from functools import partial
 
 import regex as re
 
+import jsbeautifier
+
+from jsbeautifier.javascript.options import BeautifierOptions
+
 from ..helpers import (
     inside_ignored_block,
     is_ignored_block_closing,
@@ -215,6 +219,16 @@ def indent_html(rawcode: str, config: Config) -> str:
             if ignored_level == 0:
                 is_block_raw = False
 
+        if config.profile == "jshtml":
+            func = partial(
+                _format_jshtml_tags,
+                indent,
+                indent_level,
+                config,
+                beautified_code
+            )
+            tmp = re.sub(r"({{\s*)([\s\S]+?)(\s*}})", func, tmp)
+
         beautified_code = beautified_code + tmp
 
     # we can try to fix template tags. ignore handlebars
@@ -268,3 +282,19 @@ def indent_html(rawcode: str, config: Config) -> str:
         beautified_code = beautified_code.lstrip()
 
     return beautified_code.rstrip() + "\n"
+
+
+def _format_jshtml_tags(
+        indent: str,
+        indent_level: int,
+        config: Config, match: re.Match
+) -> str:
+
+    opts = BeautifierOptions({
+        "indent_size": len(indent),
+        "indent_level": indent_level,
+        "preserve_newlines": False,
+        "wrap_line_length": config.max_line_length,
+    })
+    res = jsbeautifier.beautify(match.group(2), opts)
+    return "{{ " + res.lstrip(" ") + " }}"
