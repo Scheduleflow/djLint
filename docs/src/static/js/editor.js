@@ -58,6 +58,32 @@ if (typeof Worker !== 'undefined') {
     const formatCss = document.getElementById('settings-format-css').checked;
     if (formatCss) config['formatCss'] = formatCss;
 
+    const closeVoidTags = document.getElementById(
+      'settings-close-void-tags',
+    ).checked;
+    if (closeVoidTags) config['closeVoidTags'] = closeVoidTags;
+    const ignoreCase = document.getElementById('settings-ignore-case').checked;
+    if (ignoreCase) config['ignoreCase'] = ignoreCase;
+    const lineBreakAfterMultilineTag = document.getElementById(
+      'settings-line-break-after-multiline-tag',
+    ).checked;
+    if (lineBreakAfterMultilineTag)
+      config['lineBreakAfterMultilineTag'] = lineBreakAfterMultilineTag;
+    const noLineAfterYaml = document.getElementById(
+      'settings-no-line-after-yaml',
+    ).checked;
+    if (noLineAfterYaml) config['noLineAfterYaml'] = noLineAfterYaml;
+
+    const noFunctionFormatting = document.getElementById(
+      'settings-no-function-formatting',
+    ).checked;
+    if (noFunctionFormatting)
+      config['noFunctionFormatting'] = noFunctionFormatting;
+    const noSetFormatting = document.getElementById(
+      'settings-no-set-formatting',
+    ).checked;
+    if (noSetFormatting) config['noSetFormatting'] = noSetFormatting;
+
     return config;
   }
 

@@ -5,56 +5,48 @@ import jsbeautifier
 import regex as re
 from jsbeautifier.javascript.options import BeautifierOptions
 
+from ..helpers import child_of_unformatted_block
 from ..settings import Config
 
 
 def format_js(html: str, config: Config) -> str:
     """Format javascript inside <script> tags."""
 
-    def launch_formatter(config: Config, match: re.Match) -> str:
+    def launch_formatter(config: Config, html: str, match: re.Match) -> str:
         """Add break after if not in ignored block."""
+        if child_of_unformatted_block(config, html, match):
+            return match.group()
+
         if not match.group(3).strip():
             return match.group()
 
         indent = len(match.group(1)) * " "
-        inner_indent = indent + config.indent
 
+        # because of the param options for js-beautifier we cannot pass
+        # in a fixed space leading.
+        # so, call formatter twice, once with a fake indent.
+        # check which lines changed (these are the formattable lines)
+        # and add the leading space to them.
+
+        config.js_config["indent_level"] = 1
         opts = BeautifierOptions(config.js_config)
-
         beautified_lines = jsbeautifier.beautify(match.group(3), opts).splitlines()
+
+        config.js_config["indent_level"] = 2
+        opts = BeautifierOptions(config.js_config)
+        beautified_lines_test = jsbeautifier.beautify(match.group(3), opts).splitlines()
+
         beautified = ""
-
-        # add indent back
-        ignore_indent = False
-        for line in beautified_lines:
-            if re.search(
-                re.compile(
-                    r"\/\*[ ]*?beautify[ ]+?(?:preserve|ignore):end[ ]*?\*\/",
-                    re.DOTALL | re.IGNORECASE | re.MULTILINE,
-                ),
-                line,
-            ):
-                line = line.lstrip()
-                ignore_indent = False
-
-            if ignore_indent is False and line:
-                beautified += "\n" + inner_indent + line
-
-            else:
-                beautified += "\n" + line
-
-            if re.search(
-                re.compile(
-                    r"\/\*[ ]*?beautify[ ]+?(?:preserve|ignore):start[ ]*?\*\/",
-                    re.DOTALL | re.IGNORECASE | re.MULTILINE,
-                ),
-                line,
-            ):
-                ignore_indent = True
+        for line, test in zip(beautified_lines, beautified_lines_test):
+            beautified += "\n"
+            if line == test:
+                beautified += line
+                continue
+            beautified += indent + line
 
         return match.group(1) + match.group(2) + beautified + "\n" + indent
 
-    func = partial(launch_formatter, config)
+    func = partial(launch_formatter, config, html)
 
     return re.sub(
         re.compile(

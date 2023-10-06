@@ -7,7 +7,12 @@ run::
 
    # for a single test
 
-   pytest tests/test_linter/test_linter.py::test_T034
+   pytest tests/test_linter/test_linter.py::test_random
+
+Test setup
+
+(html, (list of codes that should file, plus optional line number))
+
 
 """
 # pylint: disable=C0116,C0103,C0302
@@ -18,216 +23,6 @@ from click.testing import CliRunner
 
 from src.djlint import main as djlint
 from tests.conftest import write_to_file
-
-
-def test_T001(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"{{test }}\n{% test%}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T001 1:" in result.output
-    assert "T001 2:" in result.output
-
-    write_to_file(tmp_file.name, b"{%- test-%}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "nunjucks"])
-    assert result.exit_code == 1
-    assert "T001 1:" in result.output
-
-    write_to_file(tmp_file.name, b"{%-test -%}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "nunjucks"])
-    assert result.exit_code == 1
-    assert "T001 1:" in result.output
-
-    write_to_file(tmp_file.name, b"{%- test -%}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "nunjucks"])
-    assert result.exit_code == 0
-
-    # this test will pass, because the jinja comment is an ignored block
-    write_to_file(tmp_file.name, b"{#-test -#}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 0
-
-    write_to_file(tmp_file.name, b"{#- test -#}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 0
-
-    # test line break around tag
-    write_to_file(
-        tmp_file.name,
-        b"""<div>
-    {%
-        ("something", "1"),
-    %}
-</div>""",
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert "T001" not in result.output
-
-    # allow jinja spaceless tags
-    write_to_file(tmp_file.name, b"{{- foo }}{{+ bar }}{{ biz -}}{{ baz +}}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert "T001" not in result.output
-
-
-def test_T002(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"{% extends 'this' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T002 1:" in result.output
-
-    # allow variable names (unquoted)
-    write_to_file(tmp_file.name, b"{% extends this %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T002" not in result.output
-
-    write_to_file(tmp_file.name, b"{% with a='this' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T002" in result.output
-
-    write_to_file(tmp_file.name, b"{% trans 'this' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T002" in result.output
-
-    write_to_file(tmp_file.name, b"{% translate 'this' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T002" in result.output
-
-    write_to_file(tmp_file.name, b"{% include 'this' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T002" in result.output
-
-    write_to_file(tmp_file.name, b"{% now 'Y-m-d G:i:s' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T002" in result.output
-
-    # verify regex doesn't over grab
-    write_to_file(
-        tmp_file.name,
-        b"""{% extends "layout.h" %}
-<div class="card" data-list='{"name": "blah"}'>
-{% include "template.html" %}
-<div {% fpr %} data-{{ name }}='{{ value }}'{% endfor %}/>""",
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T002" not in result.output
-
-    # verify regex doesn't match other stuff
-    write_to_file(
-        tmp_file.name,
-        b"""{% if form.action_url %}
-  ='stuff'
-{% endif %}
-""",
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T002" not in result.output
-
-    # verify correct line is returned
-    write_to_file(
-        tmp_file.name,
-        b"""{% include "template.html" %}
-{% include "template.html" with type='mono' %}""",
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T002 2:" in result.output
-
-
-def test_T003(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"{% endblock %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T003 1:" in result.output
-
-
-def test_DJ004(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b'<link src="/static/there">')
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "D004 1:" in result.output
-
-    write_to_file(tmp_file.name, b'<link src="/static/there">')
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 1
-    assert "J004 1:" in result.output
-
-
-def test_H005(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"<!DOCTYPE html>\n<html>")
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H005 2:" in result.output
-
-
-def test_H006(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b'<img alt="test"/>')
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H006 1:" in result.output
-    assert "found 1 error" in result.output
-
-    # check that we don't partial match in an ignored block
-    write_to_file(
-        tmp_file.name,
-        b"""{# [INFO][JINJA] I use syntax "{% if <img alt=\""",
- if I want that something happened solely if "img" exists in the content of my articles #}
-
- <script src="script.js" defer></script>
-""",
-    )
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert "H006" not in result.output
-
-
-def test_H007(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b'<html lang="en">')
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H007 1:" in result.output
-
-
-def test_H008(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"<div class='test'>")
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H008 1:" in result.output
-
-    write_to_file(
-        tmp_file.name,
-        b"""<link rel="stylesheet" href="styles.css" media="print" onload="this.media='all'" media=''/>""",
-    )
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H008 1:" in result.output
-
-    write_to_file(
-        tmp_file.name,
-        b"""<link rel="stylesheet" href="styles.css" media="print" onload="this.media='all'"/>""",
-    )
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert "H008 1:" not in result.output
-
-
-def test_H009(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"<H1>")
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H009 1:" in result.output
-
-
-def test_H010(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b'<img HEIGHT="12">')
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H010 1:" in result.output
-
-    write_to_file(tmp_file.name, b"<li>ID=username</li>")
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 0
 
 
 def test_H011(runner: CliRunner, tmp_file: TextIO) -> None:
@@ -329,29 +124,40 @@ def test_H016(runner: CliRunner, tmp_file: TextIO) -> None:
 def test_H017(runner: CliRunner, tmp_file: TextIO) -> None:
     write_to_file(tmp_file.name, b"<img this >")
     result = runner.invoke(djlint, [tmp_file.name])
+    assert "H017 1:" not in result.output
+
+    write_to_file(tmp_file.name, b"<img this >")
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H017"])
     assert result.exit_code == 1
     assert "H017 1:" in result.output
 
     write_to_file(tmp_file.name, b"<br>")
     result = runner.invoke(djlint, [tmp_file.name])
+    assert "H017 1:" not in result.output
+
+    write_to_file(tmp_file.name, b"<br>")
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H017"])
     assert result.exit_code == 1
     assert "H017 1:" in result.output
 
     write_to_file(tmp_file.name, b"<br >")
     result = runner.invoke(djlint, [tmp_file.name])
+    assert "H017 1:" not in result.output
+
+    write_to_file(tmp_file.name, b"<br >")
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H017"])
     assert result.exit_code == 1
     assert "H017 1:" in result.output
 
     # test colgroup tag
     write_to_file(tmp_file.name, b"<colgroup><colgroup asdf></colgroup></colgroup>")
-    result = runner.invoke(djlint, [tmp_file.name])
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H017"])
     print(result.output)
-    assert result.exit_code == 0
     assert "H017 1:" not in result.output
 
     # test template tags inside html
     write_to_file(tmp_file.name, b"<image {{ > }} />")
-    result = runner.invoke(djlint, [tmp_file.name])
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H017"])
     assert "H017" not in result.output
 
 
@@ -360,43 +166,6 @@ def test_DJ018(runner: CliRunner, tmp_file: TextIO) -> None:
         tmp_file.name,
         b'<a href="/Collections?handler=RemoveAgreement&id=@a.Id">\n<form action="/Collections"></form></a>',
     )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "D018 1:" in result.output
-    assert "D018 2:" in result.output
-
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 1
-    assert "J018 1:" in result.output
-    assert "J018 2:" in result.output
-
-    # test javascript functions
-    write_to_file(
-        tmp_file.name,
-        b'<a href="javascript:abc()">\n<form action="javascript:abc()"></form></a>',
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    # don't check status code. will fail on other rules here.
-    assert "D018 1:" not in result.output
-    assert "D018 2:" not in result.output
-
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    # don't check status code. will fail on other rules here.
-    assert "J018 1:" not in result.output
-    assert "J018 2:" not in result.output
-
-    # test on_ events
-    write_to_file(
-        tmp_file.name,
-        b'<a href="onclick:abc()">\n<form action="onclick:abc()"></form></a>',
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 0
-    assert "D018 1:" not in result.output
-    assert "D018 2:" not in result.output
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert "J018 1:" not in result.output
-    assert "J018 2:" not in result.output
 
     # test hash urls
     write_to_file(
@@ -405,60 +174,6 @@ def test_DJ018(runner: CliRunner, tmp_file: TextIO) -> None:
     )
     result = runner.invoke(djlint, [tmp_file.name])
     assert result.exit_code == 0
-
-    # test data-src
-    write_to_file(
-        tmp_file.name,
-        b'<div class="em-ajaxLogs" data-src="/table/task/{{ t.id }}/log"></div>',
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "D018 1:" in result.output
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert "J018 1:" in result.output
-
-    # test mailto:, tel:
-    write_to_file(
-        tmp_file.name,
-        b'<a href="mailto:joe"></a><a href="tel:joe"></a>',
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 0
-    assert "D018" not in result.output
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 0
-    assert "J018" not in result.output
-
-    # test data:
-    write_to_file(
-        tmp_file.name,
-        b'<a href="data:,Hello%2C%20World%21"></a>',
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 0
-    assert "D018" not in result.output
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 0
-    assert "J018" not in result.output
-
-    # test attribute names
-    write_to_file(
-        tmp_file.name,
-        b'<div data-row-selection-action="highlight"></div>',
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 0
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 0
-
-    # test data-actions
-    write_to_file(
-        tmp_file.name,
-        b"""<form action="{% url 'something' %}" data-action="xxx"></form>""",
-    )
-
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "D018" not in result.output
 
 
 def test_H019(runner: CliRunner, tmp_file: TextIO) -> None:
@@ -488,34 +203,6 @@ def test_H020(runner: CliRunner, tmp_file: TextIO) -> None:
     result = runner.invoke(djlint, [tmp_file.name])
     assert result.exit_code == 0
     assert "H020" not in result.output
-
-
-def test_H021(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b'<div style="asdf"></div>')
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H021 1:" in result.output
-
-    write_to_file(
-        tmp_file.name,
-        b'<link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet" />',
-    )
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 0
-    assert "H021" not in result.output
-
-    write_to_file(
-        tmp_file.name,
-        b'<acronym title="Cascading Style Sheets">CSS</acronym>',
-    )
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 0
-    assert "H021" not in result.output
-
-    # allow template syntax inside styles
-    write_to_file(tmp_file.name, b'<div style="test {%"><div style="test {{">')
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert "H021" not in result.output
 
 
 def test_H022(runner: CliRunner, tmp_file: TextIO) -> None:
@@ -704,107 +391,9 @@ def test_H025(runner: CliRunner, tmp_file: TextIO) -> None:
     assert "H025" not in result.output
 
 
-def test_H026(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b'<asdf id="" >')
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H026" in result.output
-
-    write_to_file(tmp_file.name, b"<asdf id >")
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H026" in result.output
-
-    write_to_file(tmp_file.name, b'<asdf class="" >')
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 1
-    assert "H026" in result.output
-
-    write_to_file(tmp_file.name, b'<asdf {% class="" %}></asdf>')
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert result.exit_code == 0
-    assert "H026" not in result.output
-
-    write_to_file(tmp_file.name, b"<div x-id-y><div id-y><div x-id>")
-    result = runner.invoke(djlint, [tmp_file.name])
-    assert "H026" not in result.output
-
-
 def test_T027(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"{% blah 'asdf %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T027" in result.output
-
-    write_to_file(tmp_file.name, b"{% blah 'asdf' %}{{ blah \"asdf\" }}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T027" not in result.output
-
-    write_to_file(tmp_file.name, b"{% blah 'asdf' 'blah %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert result.exit_code == 1
-    assert "T027" in result.output
-
-    write_to_file(
-        tmp_file.name,
-        b'{% trans "Check box if you\'re interested in this location." %}',
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T027" not in result.output
-
-    # test mixed quotes
-    write_to_file(
-        tmp_file.name,
-        b"{% macro rendersubmit(buttons=[], class=\"\", index='', url='', that=\"\" , test='') -%}",
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert "T027" not in result.output
-
-
-def test_T028(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"<a href=\"{% blah 'asdf' -%}\">")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 1
-    assert "T028" not in result.output
-
-    write_to_file(tmp_file.name, b"<a href=\"{%- if 'asdf' %}\">")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 1
-    assert "T028" in result.output
-
-    # django should not trigger
-    write_to_file(tmp_file.name, b"<a href=\"{%- if 'asdf' %}\">")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert result.exit_code == 1
-    assert "T028" in result.output
-
     write_to_file(tmp_file.name, b"<a href=\"{{- blah 'asdf' }}\">")
     result = runner.invoke(djlint, [tmp_file.name])
-    assert "T028" not in result.output
-
-    write_to_file(tmp_file.name, b"<a href=\"{{ blah 'asdf' -}}\">")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T028" not in result.output
-
-    write_to_file(tmp_file.name, b"<a {{ blah 'asdf' }}>")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T028" not in result.output
-
-    write_to_file(tmp_file.name, b"<a {% blah 'asdf' %}>")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T028" not in result.output
-
-    write_to_file(tmp_file.name, b"{% blah 'asdf' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T028" not in result.output
-
-    write_to_file(tmp_file.name, b"{% for 'asdf' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T028" not in result.output
-
-    # class should not trigger
-    write_to_file(tmp_file.name, b'<input class="{% if %}{% endif %}" />')
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
     assert "T028" not in result.output
 
 
@@ -849,50 +438,6 @@ def test_H031(runner: CliRunner, tmp_file: TextIO) -> None:
     assert "H031" not in result.output
 
 
-def test_T032(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"{% static ''  \"  \"  'foo/bar.min.css' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T032" in result.output
-
-    write_to_file(tmp_file.name, b"{% static  ''  %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T032" in result.output
-
-    write_to_file(tmp_file.name, b"{% static '' \"     \" 'foo/bar.min.css' %}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T032" not in result.output
-
-    write_to_file(tmp_file.name, b"{{ static ''  \"  \"  'foo/bar.min.css' }}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T032" in result.output
-
-    write_to_file(tmp_file.name, b"{{ static  ''  }}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T032" in result.output
-
-    write_to_file(tmp_file.name, b"{{ static '' \"     \" 'foo/bar.min.css' }}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "django"])
-    assert "T032" not in result.output
-
-    write_to_file(
-        tmp_file.name,
-        b"""{# [INFO] Simple example #}
- {% set stuff = [
-     'value', 'value'
- ] %}
-
- {# [INFO] Real example #}
- {% set online_scaners = [
-     ('https://example.com', 'blue', 'One'),
-     ('https://example.com', 'green', 'Two'),
-     ('https://example.com', 'plum', 'Three'),
- ] %}
-""",
-    )
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert "T032" not in result.output
-
-
 def test_H033(runner: CliRunner, tmp_file: TextIO) -> None:
     write_to_file(
         tmp_file.name, b"<form action=\" {% url 'foo:bar' %} \" ...>...</form>"
@@ -932,14 +477,47 @@ def test_H033(runner: CliRunner, tmp_file: TextIO) -> None:
     assert "H033" in result.output
 
 
-def test_T034(runner: CliRunner, tmp_file: TextIO) -> None:
-    write_to_file(tmp_file.name, b"{% not ok }%")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert "T034" in result.output
+def test_H035(runner: CliRunner, tmp_file: TextIO) -> None:
+    write_to_file(tmp_file.name, b"<meta this >")
+    result = runner.invoke(djlint, [tmp_file.name])
+    assert result.exit_code == 0
+    assert "H035 1:" not in result.output
 
-    write_to_file(tmp_file.name, b"{% not ok \n%}")
-    result = runner.invoke(djlint, [tmp_file.name, "--profile", "jinja"])
-    assert "T034" not in result.output
+    write_to_file(tmp_file.name, b"<meta this >")
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H035"])
+    assert result.exit_code == 1
+    assert "H035 1:" in result.output
+
+    write_to_file(tmp_file.name, b"<meta>")
+    result = runner.invoke(djlint, [tmp_file.name])
+    assert result.exit_code == 0
+    assert "H035 1:" not in result.output
+
+    write_to_file(tmp_file.name, b"<meta>")
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H035"])
+    assert result.exit_code == 1
+    assert "H035 1:" in result.output
+
+
+def test_H036(runner: CliRunner, tmp_file: TextIO) -> None:
+    write_to_file(tmp_file.name, b"<br><br ><br />")
+    result = runner.invoke(djlint, [tmp_file.name])
+    assert "H036" not in result.output
+
+    write_to_file(tmp_file.name, b"<br>")
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H036"])
+    assert result.exit_code == 1
+    assert "H036" in result.output
+
+    write_to_file(tmp_file.name, b"<br />")
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H036"])
+    assert result.exit_code == 1
+    assert "H036" in result.output
+
+    write_to_file(tmp_file.name, b"<br/>")
+    result = runner.invoke(djlint, [tmp_file.name, "--include", "H036"])
+    assert result.exit_code == 1
+    assert "H036" in result.output
 
 
 def test_rules_not_matched_in_ignored_block(

@@ -7,7 +7,7 @@ import tempfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import click
 from click import echo
@@ -127,6 +127,132 @@ from .src import get_src
     is_flag=True,
     help="Count the number of occurrences of each error/warning code.",
 )
+@click.option(
+    "--include",
+    type=str,
+    default="",
+    help='Codes to include. ex: "H014,H017"',
+    show_default=False,
+)
+@click.option(
+    "--ignore-case",
+    is_flag=True,
+    help="Do not fix case on known html tags.",
+)
+@click.option(
+    "--ignore-blocks",
+    type=str,
+    default="",
+    help="Comma list of template blocks to not indent.",
+)
+@click.option(
+    "--blank-line-after-tag",
+    type=str,
+    default="",
+    help="Add an additional blank line after {% <tag> ... %} tag groups.",
+)
+@click.option(
+    "--blank-line-before-tag",
+    type=str,
+    default="",
+    help="Add an additional blank line before {% <tag> ... %} tag groups.",
+)
+@click.option(
+    "--line-break-after-multiline-tag",
+    is_flag=True,
+    help="Do not condense the content of multi-line tags into the line of the last attribute.",
+)
+@click.option(
+    "--custom-blocks",
+    type=str,
+    default="",
+    help="Indent custom template blocks. For example {% toc %}...{% endtoc %}",
+)
+@click.option(
+    "--custom-html",
+    type=str,
+    default="",
+    help="Indent custom HTML tags. For example <mjml>",
+)
+@click.option(
+    "--exclude",
+    type=str,
+    default="",
+    help="Override the default exclude paths.",
+)
+@click.option(
+    "--extend-exclude",
+    type=str,
+    default="",
+    help="Add additional paths to the default exclude.",
+)
+@click.option(
+    "--linter-output-format",
+    type=str,
+    default="",
+    help="Customize order of linter output message.",
+)
+@click.option(
+    "--max-line-length",
+    type=int,
+    help="Max line length. [default: 120]",
+    show_default=False,
+)
+@click.option(
+    "--max-attribute-length",
+    type=int,
+    help="Max attribute length. [default: 70]",
+    show_default=False,
+)
+@click.option(
+    "--format-attribute-template-tags",
+    is_flag=True,
+    help="Attempt to format template syntax inside of tag attributes.",
+)
+@click.option(
+    "--per-file-ignores",
+    type=(str, str),
+    multiple=True,
+    help="Ignore linter rules on a per-file basis.",
+)
+@click.option(
+    "--indent-css",
+    type=int,
+    help="Set CSS indent level.",
+    show_default=False,
+)
+@click.option(
+    "--indent-js",
+    type=int,
+    help="Set JS indent level.",
+    show_default=False,
+)
+@click.option(
+    "--close-void-tags",
+    is_flag=True,
+    help="Add closing mark on known void tags. Ex: <img> becomse <img />",
+)
+@click.option(
+    "--no-line-after-yaml",
+    is_flag=True,
+    help="Do not add a blank line after yaml front matter.",
+)
+@click.option(
+    "--no-function-formatting",
+    is_flag=True,
+    help="Do not attempt to format function contents.",
+)
+@click.option(
+    "--no-set-formatting",
+    is_flag=True,
+    help="Do not attempt to format set contents.",
+)
+@click.option(
+    "--max-blank-lines",
+    type=int,
+    help="Consolidate blank lines down to x lines. [default: 0]",
+    show_default=False,
+)
 @colorama_text(autoreset=True)
 def main(
     src: List[str],
@@ -147,6 +273,28 @@ def main(
     format_js: bool,
     configuration: Optional[str],
     statistics: bool,
+    include: str,
+    ignore_case: bool,
+    ignore_blocks: str,
+    blank_line_after_tag: str,
+    blank_line_before_tag: str,
+    line_break_after_multiline_tag: bool,
+    custom_blocks: str,
+    custom_html: str,
+    exclude: str,
+    extend_exclude: str,
+    linter_output_format: str,
+    max_line_length: Optional[int],
+    max_attribute_length: Optional[int],
+    format_attribute_template_tags: bool,
+    per_file_ignores: Optional[List[Tuple[str, str]]],
+    indent_css: Optional[int],
+    indent_js: Optional[int],
+    close_void_tags: bool,
+    no_line_after_yaml: bool,
+    no_function_formatting: bool,
+    no_set_formatting: bool,
+    max_blank_lines: Optional[int],
 ) -> None:
     """djLint · HTML template linter and formatter."""
     config = Config(
@@ -168,6 +316,28 @@ def main(
         format_js=format_js,
         configuration=configuration,
         statistics=statistics,
+        include=include,
+        ignore_case=ignore_case,
+        ignore_blocks=ignore_blocks,
+        blank_line_after_tag=blank_line_after_tag,
+        blank_line_before_tag=blank_line_before_tag,
+        line_break_after_multiline_tag=line_break_after_multiline_tag,
+        custom_blocks=custom_blocks,
+        custom_html=custom_html,
+        exclude=exclude,
+        extend_exclude=extend_exclude,
+        linter_output_format=linter_output_format,
+        max_line_length=max_line_length,
+        max_attribute_length=max_attribute_length,
+        format_attribute_template_tags=format_attribute_template_tags,
+        per_file_ignores=per_file_ignores,
+        indent_css=indent_css,
+        indent_js=indent_js,
+        close_void_tags=close_void_tags,
+        no_line_after_yaml=no_line_after_yaml,
+        no_function_formatting=no_function_formatting,
+        no_set_formatting=no_set_formatting,
+        max_blank_lines=max_blank_lines,
     )
 
     temp_file = None
@@ -203,7 +373,7 @@ def main(
         message = "Reformatting"
 
     if config.lint:
-        if message != "":
+        if message:
             message += " and "
         message += "Linting"
 

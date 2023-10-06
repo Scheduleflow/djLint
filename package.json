@@ -1,8 +1,7 @@
 {
   "name": "djlint",
-  "version": "1.19.16",
+  "version": "1.32.1",
   "description": "HTML Template Linter and Formatter",
-  "main": "./bin/index.js",
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -11,6 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/Riverside-Healthcare/djLint.git"
   },
+  "files": [],
   "keywords": [
     "html template linter",
     "html template formatter",
@@ -29,17 +29,11 @@
     "angular template linter",
     "angular template formatter"
   ],
-  "files": [
-    "bin"
-  ],
-  "bin": {
-    "djlint": "./bin/index.js"
-  },
   "scripts": {
     "format": "prettier --config .prettierrc \"{bin,docs}/**/*.{ts,css,less,scss,js,json,md,yaml,html}\" --write",
-    "postinstall": "python3 -m pip install --upgrade djlint",
+    "postinstall": "python3 -m pip install --upgrade djlint==1.32.1",
     "pre-commit": "lint-staged",
-    "commit": "git add . && pre-commit run; npm run pre-commit && cz --no-verify",
+    "commit": "git add . && pre-commit run; git add . && npm run pre-commit && cz --no-verify",
     "test": "xo"
   },
   "author": {
@@ -51,22 +45,18 @@
     "url": "https://github.com/Riverside-Healthcare/djLint/issues"
   },
   "homepage": "https://djlint.com",
-  "dependencies": {
-    "python-shell": "^5.0.0",
-    "yargs": "17.7.1"
-  },
   "devDependencies": {
-    "@semantic-release/changelog": "6.0.2",
-    "@semantic-release/commit-analyzer": "9.0.2",
+    "@semantic-release/changelog": "6.0.3",
+    "@semantic-release/commit-analyzer": "10.0.1",
     "@semantic-release/exec": "6.0.3",
     "@semantic-release/git": "10.0.1",
-    "@semantic-release/github": "8.0.7",
-    "@semantic-release/npm": "9.0.2",
-    "@semantic-release/release-notes-generator": "10.0.3",
+    "@semantic-release/github": "9.0.3",
+    "@semantic-release/npm": "10.0.4",
+    "@semantic-release/release-notes-generator": "11.0.4",
     "cz-conventional-changelog": "3.3.0",
-    "lint-staged": "13.1.2",
-    "semantic-release": "20.1.0",
-    "xo": "0.53.1"
+    "lint-staged": "13.2.3",
+    "prettier": "^3.0.0",
+    "semantic-release": "21.0.7"
   },
   "config": {
     "commitizen": {
@@ -76,24 +66,6 @@
   "lint-staged": {
     "{bin,docs}/**/*.{ts,css,less,scss,js,json,md,yaml,html}": [
       "npm run format"
-    ]
-  },
-  "xo": {
-    "space": true,
-    "prettier": true,
-    "rules": {
-      "unicorn/prefer-module": "off",
-      "no-var": "warn",
-      "camelcase": "warn",
-      "unicorn/filename-case": "warn",
-      "unicorn/no-process-exit": "off"
-    },
-    "globals": [
-      "document",
-      "window",
-      "data",
-      "debounce",
-      "history"
     ]
   }
 }

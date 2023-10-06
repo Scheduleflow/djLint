@@ -8,7 +8,7 @@ import logging
 
 ## get pyproject.toml settings
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import yaml
 from click import echo
@@ -150,9 +150,12 @@ def validate_rules(rules: List) -> List:
         if "name" not in rule["rule"]:
             warning += 1
             echo(Fore.RED + "Warning: A rule is missing a name! 😢")
-        if "patterns" not in rule["rule"]:
+        if "patterns" not in rule["rule"] and "python_module" not in rule["rule"]:
             warning += 1
-            echo(Fore.RED + f"Warning: Rule {name} is missing a pattern! 😢")
+            echo(
+                Fore.RED
+                + f"Warning: Rule {name} is missing a pattern or a python_module! 😢"
+            )
         if "message" not in rule["rule"]:
             warning += 1
             echo(Fore.RED + f"Warning: Rule {name} is missing a message! 😢")
@@ -181,7 +184,22 @@ def load_custom_rules(src: Path) -> List:
 def build_custom_blocks(custom_blocks: Union[str, None]) -> Optional[str]:
     """Build regex string for custom template blocks."""
     if custom_blocks:
-        return "|" + "|".join(x.strip() for x in custom_blocks.split(","))
+        # need to also do "end<tag>"
+        open_tags = [x.strip() for x in custom_blocks.split(",")]
+        close_tags = ["end" + x.strip() for x in custom_blocks.split(",")]
+        # Group all tags together with a negative lookahead.
+        tags = {tag + r"\b" for tag in open_tags + close_tags}
+        return "|" + "|".join(sorted(tags))
+    return None
+
+
+def build_ignore_blocks(ignore_blocks: Union[str, None]) -> Optional[str]:
+    """Build regex string for template blocks to not format."""
+    if ignore_blocks:
+        # need to also do "end<tag>"
+        open_tags = [x.strip() + r"\b" for x in ignore_blocks.split(",")]
+        close_tags = ["end" + x.strip() + r"\b" for x in ignore_blocks.split(",")]
+        return "|".join(sorted(set(open_tags + close_tags)))
     return None
 
 
@@ -215,6 +233,28 @@ class Config:
         format_js: bool = False,
         configuration: Optional[str] = None,
         statistics: bool = False,
+        include: Optional[str] = None,
+        ignore_case: bool = False,
+        ignore_blocks: str = "",
+        custom_blocks: str = "",
+        blank_line_after_tag: str = "",
+        blank_line_before_tag: str = "",
+        line_break_after_multiline_tag: bool = False,
+        custom_html: str = "",
+        exclude: str = "",
+        extend_exclude: str = "",
+        linter_output_format: str = "",
+        max_line_length: Optional[int] = None,
+        max_attribute_length: Optional[int] = None,
+        format_attribute_template_tags: bool = False,
+        per_file_ignores: Optional[List[Tuple[str, str]]] = None,
+        indent_css: Optional[int] = None,
+        indent_js: Optional[int] = None,
+        close_void_tags: bool = False,
+        no_line_after_yaml: bool = False,
+        no_function_formatting: bool = False,
+        no_set_formatting: bool = False,
+        max_blank_lines: Optional[int] = None,
     ):
         self.reformat = reformat
         self.check = check
@@ -242,20 +282,25 @@ class Config:
         )
 
         self.custom_blocks: str = str(
-            build_custom_blocks(djlint_settings.get("custom_blocks")) or ""
+            build_custom_blocks(custom_blocks or djlint_settings.get("custom_blocks"))
+            or ""
         )
 
         self.custom_html: str = str(
-            build_custom_html(djlint_settings.get("custom_html")) or ""
+            build_custom_html(custom_html or djlint_settings.get("custom_html")) or ""
         )
 
-        self.format_attribute_template_tags: bool = djlint_settings.get(
-            "format_attribute_template_tags", False
+        self.format_attribute_template_tags: bool = (
+            format_attribute_template_tags
+            or djlint_settings.get("format_attribute_template_tags", False)
         )
 
         self.preserve_leading_space: bool = (
             preserve_leading_space
             or djlint_settings.get("preserve_leading_space", False)
+        )
+        self.ignore_blocks: Optional[str] = build_ignore_blocks(
+            ignore_blocks or djlint_settings.get("ignore_blocks", "")
         )
 
         self.preserve_blank_lines: bool = preserve_blank_lines or djlint_settings.get(
@@ -264,13 +309,37 @@ class Config:
 
         self.format_js: bool = format_js or djlint_settings.get("format_js", False)
 
-        self.js_config = djlint_settings.get("js")
-        self.css_config = djlint_settings.get("css")
+        self.js_config = (
+            {"indent_size": indent_js} if indent_js else djlint_settings.get("js")
+        ) or {}
+
+        self.css_config = (
+            {"indent_size": indent_css} if indent_css else djlint_settings.get("css")
+        ) or {}
 
         self.format_css: bool = format_css or djlint_settings.get("format_css", False)
 
+        self.ignore_case: bool = ignore_case or djlint_settings.get(
+            "ignore_case", False
+        )
+
+        self.close_void_tags: bool = close_void_tags or djlint_settings.get(
+            "close_void_tags", False
+        )
+        self.no_line_after_yaml: bool = no_line_after_yaml or djlint_settings.get(
+            "no_line_after_yaml", False
+        )
+        self.no_set_formatting: bool = no_set_formatting or djlint_settings.get(
+            "no_set_formatting", False
+        )
+        self.no_function_formatting: bool = (
+            no_function_formatting
+            or djlint_settings.get("no_function_formatting", False)
+        )
+
         # ignore is based on input and also profile
         self.ignore: str = str(ignore or djlint_settings.get("ignore", ""))
+        self.include: str = str(include or djlint_settings.get("include", ""))
 
         self.files: Optional[List[str]] = djlint_settings.get("files", None)
         self.stdin = False
@@ -293,7 +362,7 @@ class Config:
             profile or djlint_settings.get("profile", "all")
         ).lower()
 
-        self.linter_output_format: str = djlint_settings.get(
+        self.linter_output_format: str = linter_output_format or djlint_settings.get(
             "linter_output_format", "{code} {line} {message} {match}"
         )
 
@@ -312,7 +381,11 @@ class Config:
                 and not any(
                     x["rule"]["name"].startswith(code) for code in self.profile_code
                 )
-                and self.profile not in x["rule"].get("exclude", []),
+                and self.profile not in x["rule"].get("exclude", [])
+                and (
+                    x["rule"].get("default", True)
+                    or x["rule"]["name"] in self.include.split(",")
+                ),
                 rule_set,
             )
         )
@@ -330,7 +403,19 @@ class Config:
                     + f"Error: Invalid pyproject.toml indent value {djlint_settings['indent']}"
                 )
                 indent = default_indent
-        self.indent: str = indent * " "
+        self.indent_size = indent
+        self.indent: str = int(indent) * " "
+
+        try:
+            self.max_blank_lines = int(
+                djlint_settings.get("max_blank_lines", max_blank_lines or 0)
+            )
+        except ValueError:
+            echo(
+                Fore.RED
+                + f"Error: Invalid pyproject.toml indent value {djlint_settings['max_blank_lines']}"
+            )
+            self.max_blank_lines = max_blank_lines or 0
 
         default_exclude: str = r"""
             \.venv
@@ -353,25 +438,35 @@ class Config:
             | __pypackages__
         """
 
-        self.exclude: str = djlint_settings.get("exclude", default_exclude)
+        self.exclude: str = exclude or djlint_settings.get("exclude", default_exclude)
 
-        extend_exclude: str = djlint_settings.get("extend_exclude", "")
+        extend_exclude = extend_exclude or djlint_settings.get("extend_exclude", "")
 
         if extend_exclude:
             self.exclude += r" | " + r" | ".join(
                 x.strip() for x in extend_exclude.split(",")
             )
 
-        self.per_file_ignores = djlint_settings.get("per-file-ignores", {})
-
-        # add blank line after load tags
-        self.blank_line_after_tag: Optional[str] = djlint_settings.get(
-            "blank_line_after_tag", None
+        self.per_file_ignores = (
+            ({x: y for x, y in per_file_ignores})
+            if per_file_ignores
+            else djlint_settings.get("per-file-ignores", {})
         )
 
+        # add blank line after load tags
+        self.blank_line_after_tag: Optional[
+            str
+        ] = blank_line_after_tag or djlint_settings.get("blank_line_after_tag", None)
+
         # add blank line before load tags
-        self.blank_line_before_tag: Optional[str] = djlint_settings.get(
-            "blank_line_before_tag", None
+        self.blank_line_before_tag: Optional[
+            str
+        ] = blank_line_before_tag or djlint_settings.get("blank_line_before_tag", None)
+
+        # add line break after multi-line tags
+        self.line_break_after_multiline_tag: bool = (
+            line_break_after_multiline_tag
+            or djlint_settings.get("line_break_after_multiline_tag", False)
         )
 
         # contents of tags will not be formatted
@@ -385,9 +480,9 @@ class Config:
             | ^{\#(?!\s*djlint\:\s*(?:on|off))
             | <pre
             | <textarea
-            | {%[ ]*?blocktrans(?:late)?[^(?:%})]*?%}
+            | {%[ ]*?blocktrans(?:late)?(?:(?!%}|\btrimmed\b).)*?%}
             | {\#\s*djlint\:\s*off\s*\#}
-            | {%[ ]+?comment[ ]+?[^(?:%})]*?%}
+            | {%[ ]+?comment[ ]+?(?:(?!%}).)*?%}
             | {{!--\s*djlint\:off\s*--}}
             | {{-?\s*/\*\s*djlint\:off\s*\*/\s*-?}}
         """
@@ -402,10 +497,10 @@ class Config:
             | </pre
             | </textarea
             | {\#\s*djlint\:\s*on\s*\#}
-            | {%[ ]+?endcomment[ ]+?%}
+            | (?<!djlint:off\s*?){%[ ]+?endcomment[ ]+?%}
             | {{!--\s*djlint\:on\s*--}}
             | {{-?\s*/\*\s*djlint\:on\s*\*/\s*-?}}
-            | {%[ ]*?endblocktrans(?:late)?[^(?:%})]*?%}
+            | {%[ ]*?endblocktrans(?:late)?(?:(?!%}).)*?%}
         """
 
         # ignored block closing tags that
@@ -423,10 +518,11 @@ class Config:
         self.indent_html_tags: str = "|".join(html_tag_names) + self.custom_html
 
         self.indent_template_tags: str = (
-            r"""  if
+            (rf"(?!{self.ignore_blocks})" if self.ignore_blocks else "")
+            + r""" (?:if
+                | ifchanged
                 | for
                 | block(?!trans|translate)
-            #    | blocktrans(?:late)?[ ]+?trimmed
                 | spaceless
                 | compress
                 | addto
@@ -440,8 +536,13 @@ class Config:
                 | macro
                 | call
                 | raw
+                | blocktrans(?!late)
+                | blocktranslate
+                | thumbnail
+                | set(?!(?:(?!%}).)*=)
             """
             + self.custom_blocks
+            + r")\b"
         )
 
         self.template_indent: str = (
@@ -450,19 +551,21 @@ class Config:
                 ("""
             + self.indent_template_tags
             + r"""
-            )"""
+            ) | \{{-?[ ]*?form_start
+            """
         )
 
         self.template_unindent: str = r"""
                 (?:
                   (?:\{\{\/)
                 | (?:\{%-?[ ]*?end(?!comment))
+                | (?:\{{-?[ ]*?form_end)
               )
             """
 
         # these tags should be unindented and next line will be indented
         self.tag_unindent_line: str = r"""
-              (?:\{%-?[ ]*?(?:elif|else|empty))
+              (?:\{%-?[ ]*?(?:elif|else|empty|plural))
             | (?:
                 \{\{[ ]*?
                 (
@@ -478,7 +581,7 @@ class Config:
         self.max_line_length = 120
 
         try:
-            self.max_line_length = int(
+            self.max_line_length = max_line_length or int(
                 djlint_settings.get("max_line_length", self.max_line_length)
             )
         except ValueError:
@@ -490,7 +593,7 @@ class Config:
         self.max_attribute_length = 70
 
         try:
-            self.max_attribute_length = int(
+            self.max_attribute_length = max_attribute_length or int(
                 djlint_settings.get("max_attribute_length", self.max_attribute_length)
             )
         except ValueError:
@@ -507,7 +610,7 @@ class Config:
             rf"""
             (?:
                 (
-                    (?:\w|-|\.|\:|@)+ | required | checked
+                    (?:\w|-|\.|\:|@|/(?!>))+ | required | checked
                 )? # attribute name
                 (?:  [ ]*?=[ ]*? # followed by "="
                     (
@@ -538,13 +641,23 @@ class Config:
             | ({self.template_if_for_pattern}
             """
             + r"""
+            | (?:\'|\") # allow random trailing quotes
             | {{.*?}}
             | {\#.*?\#}
             | {%.*?%})
         """
         )
 
+        self.html_tag_regex = r"""
+            (</?(?:!(?!--))?) # an opening bracket (< or </ or <!), but not a comment
+            ([^\s>!\[]+\b) # a tag name
+            ((?:\s*?(?:\"[^\"]*\"|'[^']*'|{{(?:(?!}}).)*}}|{%(?:(?!%}).)*%}|[^'\">{}/\s]|/(?!>)))+)? # any attributes
+            \s*? # potentially some whitespace
+            (/?>) # a closing braket (/> or >)
+        """
+
         self.attribute_style_pattern: str = r"^(.*?)(style=)([\"|'])(([^\"']+?;)+?)\3"
+
         self.ignored_attributes = [
             "href",
             "action",
@@ -554,9 +667,11 @@ class Config:
             "srcset",
             "data-src",
         ]
+
         self.start_template_tags: str = (
-            r"""
-              if
+            (rf"(?!{self.ignore_blocks})" if self.ignore_blocks else "")
+            + r"""
+              (?:if
             | for
             | block(?!trans)
             | spaceless
@@ -574,21 +689,28 @@ class Config:
             | macro
             | call
             | raw
+            | blocktrans(?!late)
+            | blocktranslate
+            | thumbnail
+            | set(?!(?:(?!%}).)*=)
+
             """
             + self.custom_blocks
-            + r"""
+            + r""")
         """
         )
 
         self.break_template_tags: str = (
-            r"""
-              if
+            (rf"(?!{self.ignore_blocks})" if self.ignore_blocks else "")
+            + r"""
+              (?:if
             | endif
             | for
             | endfor
             | block(?!trans)
             | endblock(?!trans)
             | else
+            | plural
             | spaceless
             | endspaceless
             | compress
@@ -617,15 +739,66 @@ class Config:
             | call
             | endcall
             | image
+            | blocktrans(?!late)
+            | endblocktrans(?!late)
+            | blocktranslate
+            | endblocktranslate
+            | set(?!(?:(?!%}).)*=)
+            | endset
+            | thumbnail
+            | endthumbnail
             """
             + self.custom_blocks
-            + r"""
+            + r""")
         """
         )
         self.template_blocks: str = r"""
         {%((?!%}).)+%}
         """
+
+        self.ignored_linter_blocks: str = r"""
+           {%-?[ ]*?raw\b(?:(?!%}).)*?-?%}.*?(?={%-?[ ]*?endraw[ ]*?-?%})
+        """
+
+        self.unformatted_blocks: str = r"""
+            # html comment
+            | <!--\s*djlint\:off\s*-->.(?:(?!<!--\s*djlint\:on\s*-->).)*
+            # django/jinja/nunjucks
+            | {\#\s*djlint\:\s*off\s*\#}(?:(?!{\#\s*djlint\:\s*on\s*\#}).)*
+            | {%\s*comment\s*%\}\s*djlint\:off\s*\{%\s*endcomment\s*%\}(?:(?!{%\s*comment\s*%\}\s*djlint\:on\s*\{%\s*endcomment\s*%\}).)*
+            # inline jinja comments
+            | {\#(?!\s*djlint\:\s*(?:off|on)).*?\#}
+            # handlebars
+            | {{!--\s*djlint\:off\s*--}}(?:(?!{{!--\s*djlint\:on\s*--}}).)*
+            # golang
+            | {{-?\s*/\*\s*djlint\:off\s*\*/\s*-?}}(?:(?!{{-?\s*/\*\s*djlint\:on\s*\*/\s*-?}}).)*
+            | ^---[\s\S]+?---
+        """
+
         self.ignored_blocks: str = r"""
+              <(pre|textarea).*?</(\1)>
+            | <(script|style).*?(?=(\</(?:\3)>))
+            # html comment
+            | <!--\s*djlint\:off\s*-->.(?:(?!<!--\s*djlint\:on\s*-->).)*
+            # django/jinja/nunjucks
+            | {\#\s*djlint\:\s*off\s*\#}(?:(?!{\#\s*djlint\:\s*on\s*\#}).)*
+            | {%\s*comment\s*%\}\s*djlint\:off\s*\{%\s*endcomment\s*%\}(?:(?!{%\s*comment\s*%\}\s*djlint\:on\s*\{%\s*endcomment\s*%\}).)*
+            # inline jinja comments
+            | {\#(?!\s*djlint\:\s*(?:off|on)).*?\#}
+            # handlebars
+            | {{!--\s*djlint\:off\s*--}}(?:(?!{{!--\s*djlint\:on\s*--}}).)*
+            # golang
+            | {{-?\s*/\*\s*djlint\:off\s*\*/\s*-?}}(?:(?!{{-?\s*/\*\s*djlint\:on\s*\*/\s*-?}}).)*
+            # inline golang comments
+            | {{-?\s*/\*(?!\s*djlint\:\s*(?:off|on)).*?\*/\s*-?}}
+            | <!--.*?-->
+            | <\?php.*?\?>
+            | {%[ ]*?blocktranslate\b(?:(?!%}|\btrimmed\b).)*?%}.*?{%[ ]*?endblocktranslate[ ]*?%}
+            | {%[ ]*?blocktrans\b(?:(?!%}|\btrimmed\b).)*?%}.*?{%[ ]*?endblocktrans[ ]*?%}
+            | {%[ ]*?comment\b(?:(?!%}).)*?%}(?:(?!djlint:(?:off|on)).)*?(?={%[ ]*?endcomment[ ]*?%})
+            | ^---[\s\S]+?---
+        """
+        self.ignored_blocks_inline: str = r"""
               <(pre|textarea).*?</(\1)>
             | <(script|style).*?(?=(\</(?:\3)>))
             # html comment
@@ -639,25 +812,39 @@ class Config:
             | {{!--\s*djlint\:off\s*--}}.*?(?={{!--\s*djlint\:on\s*--}})
             # golang
             | {{-?\s*/\*\s*djlint\:off\s*\*/\s*-?}}.*?(?={{-?\s*/\*\s*djlint\:on\s*\*/\s*-?}})
+            # inline golang comments
+            | {{-?\s*/\*(?!\s*djlint\:\s*(?:off|on)).*?\*/\s*-?}}
             | <!--.*?-->
             | <\?php.*?\?>
-            | {%[ ]*?blocktranslate\b[^(?:%})]*?%}.*?{%[ ]*?endblocktranslate[ ]*?%}
-            | {%[ ]*?blocktrans\b[^(?:%})]*?%}.*?{%[ ]*?endblocktrans[ ]*?%}
-            | {%[ ]*?comment\b[^(?:%})]*?%}.*?(?={%[ ]*?endcomment[ ]*?%})
+            | {%[ ]*?blocktranslate\b(?:(?!%}|\btrimmed\b).)*?%}.*?{%[ ]*?endblocktranslate[ ]*?%}
+            | {%[ ]*?blocktrans\b(?:(?!%}|\btrimmed\b).)*?%}.*?{%[ ]*?endblocktrans[ ]*?%}
+            | {%[ ]*?comment\b(?:(?!%}).)*?%}(?:(?!djlint:(?:off|on)).)*?(?={%[ ]*?endcomment[ ]*?%})
             | ^---[\s\S]+?---
         """
 
         self.ignored_rules: List[str] = [
             # html comment
-            r"<!--\s*djlint\:off(.+?)-->.*?(?=<!--\s*djlint\:on\s*-->)",
+            r"<!--\s*djlint\:off(.+?)-->(?:(?!<!--\s*djlint\:on\s*-->).)*",
             # django/jinja/nunjucks
-            r"{\#\s*djlint\:\s*off(.+?)\#}.*?(?={\#\s*djlint\:\s*on\s*\#})",
-            r"{%\s*comment\s*%\}\s*djlint\:off(.*?)\{%\s*endcomment\s*%\}.*?(?={%\s*comment\s*%\}\s*djlint\:on\s*\{%\s*endcomment\s*%\})",
+            r"{\#\s*djlint\:\s*off(.+?)\#}(?:(?!{\#\s*djlint\:\s*on\s*\#}).)*",
+            r"{%\s*comment\s*%\}\s*djlint\:off(.*?)\{%\s*endcomment\s*%\}(?:(?!{%\s*comment\s*%\}\s*djlint\:on\s*\{%\s*endcomment\s*%\}).)*",
             # handlebars
-            r"{{!--\s*djlint\:off(.*?)--}}.*?(?={{!--\s*djlint\:on\s*--}})",
+            r"{{!--\s*djlint\:off(.*?)--}}(?:(?!{{!--\s*djlint\:on\s*--}}).)*",
             # golang
-            r"{{-?\s*/\*\s*djlint\:off(.*?)\*/\s*-?}}.*?(?={{-?\s*/\*\s*djlint\:on\s*\*/\s*-?}})",
+            r"{{-?\s*/\*\s*djlint\:off(.*?)\*/\s*-?}}(?:(?!{{-?\s*/\*\s*djlint\:on\s*\*/\s*-?}}).)*",
         ]
+
+        self.ignored_trans_blocks: str = r"""
+              {%[ ]*?blocktranslate?\b(?:(?!%}|\btrimmed\b).)*?%}.*?{%[ ]*?endblocktranslate?[ ]*?%}
+            | {%[ ]*?blocktrans\b(?:(?!%}|\btrimmed\b).)*?%}.*?{%[ ]*?endblocktrans[ ]*?%}
+        """
+        self.trans_trimmed_blocks: str = r"""
+              {%[ ]*?blocktranslate\b(?:(?!%}).)*?\btrimmed\b(?:(?!%}).)*?%}.*?{%[ ]*?endblocktranslate[ ]*?%}
+            | {%[ ]*?blocktrans\b(?:(?!%}).)*?\btrimmed\b(?:(?!%}).)*?%}.*?{%[ ]*?endblocktrans[ ]*?%}
+        """
+        self.ignored_trans_blocks_closing: str = r"""
+         {%[ ]*?endblocktrans(?:late)?(?:(?!%}).)*?%}
+        """
 
         self.ignored_inline_blocks: str = r"""
               <!--.*?-->
@@ -666,9 +853,8 @@ class Config:
             | {\*.*?\*}
             | {\#(?!.*djlint:[ ]*?(?:off|on)\b).*\#}
             | <\?php.*?\?>
-            | {%[ ]*?comment\b[^(?:%})]*?%}.*?{%[ ]*?endcomment[ ]*?%}
-            | {%[ ]*?blocktranslate\b[^(?:%})]*?%}.*?{%[ ]*?endblocktranslate[ ]*?%}
-            | {%[ ]*?blocktrans\b[^(?:%})]*?%}.*?{%[ ]*?endblocktrans[ ]*?%}
+            | {%[ ]*?comment\b(?:(?!%}).)*?%}(?:(?!djlint:(?:off|on)).)*?{%[ ]*?endcomment[ ]*?%}
+            | {%[ ]*?blocktrans(?:late)?\b(?:(?!%}|\btrimmed\b).)*?%}.*?{%[ ]*?endblocktrans(?:late)?[ ]*?%}
         """
 
         self.optional_single_line_html_tags: str = r"""
@@ -698,6 +884,15 @@ class Config:
             | head
             | body
             | p
+            | select
+            | article
+            | option
+            | legend
+            | summary
+            | dt
+            | figcaption
+            | tr
+            | li
         """
 
         self.always_self_closing_html_tags: str = "|".join(html_void_elements)

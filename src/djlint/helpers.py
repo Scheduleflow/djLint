@@ -13,7 +13,7 @@ def is_ignored_block_opening(config: Config, item: str) -> bool:
     last_index = 0
     inline = list(
         re.finditer(
-            config.ignored_blocks,
+            config.ignored_blocks_inline,
             item,
             flags=re.IGNORECASE | re.VERBOSE | re.MULTILINE | re.DOTALL,
         )
@@ -30,6 +30,95 @@ def is_ignored_block_opening(config: Config, item: str) -> bool:
             item[last_index:],
         )
     )
+
+
+def inside_protected_trans_block(config: Config, html: str, match: re.Match) -> bool:
+    """Find ignored group closing.
+
+    A valid ignored group closing tag will not be part of a
+    single line block.
+
+    True = non indentable > inside ignored trans block
+    False = indentable > either inside a trans trimmed block, or somewhere else, but not a trans non trimmed :)
+    """
+    last_index = 0
+    close_block = re.search(
+        re.compile(
+            config.ignored_trans_blocks_closing, flags=re.IGNORECASE | re.VERBOSE
+        ),
+        match.group(),
+    )
+
+    if not close_block:
+        return False
+
+    non_trimmed = list(
+        re.finditer(
+            re.compile(
+                config.ignored_trans_blocks,
+                flags=re.IGNORECASE | re.VERBOSE | re.DOTALL,
+            ),
+            html,
+        )
+    )
+
+    trimmed = list(
+        re.finditer(
+            re.compile(
+                config.trans_trimmed_blocks,
+                flags=re.IGNORECASE | re.VERBOSE | re.DOTALL,
+            ),
+            html,
+        )
+    )
+
+    # who is max?
+    if non_trimmed and (not trimmed or non_trimmed[-1].end() > trimmed[-1].end()):
+        # non trimmed!
+        # check that this is not an inline block.
+        non_trimmed_inline = list(
+            re.finditer(
+                re.compile(
+                    config.ignored_trans_blocks,
+                    flags=re.IGNORECASE | re.VERBOSE | re.DOTALL,
+                ),
+                match.group(),
+            )
+        )
+
+        if non_trimmed_inline:
+            last_index = non_trimmed[
+                -1
+            ].end()  # get the last index. The ignored opening should start after this.
+
+            return re.search(
+                re.compile(
+                    config.ignored_trans_blocks_closing,
+                    flags=re.IGNORECASE | re.VERBOSE,
+                ),
+                html[last_index:],
+            )
+
+        return close_block.end(0) <= non_trimmed[-1].end()
+
+    elif trimmed:
+        # inside a trimmed block, we can return true to continue as if
+        # this is a indentable block
+        return close_block.end(0) > trimmed[-1].end()
+    return False
+
+    # print(close_block)
+    # if non_trimmed:
+    #     last_index = non_trimmed[
+    #         -1
+    #     ].end()  # get the last index. The ignored opening should start after this.
+
+    # return re.search(
+    #     re.compile(
+    #         config.ignored_trans_blocks_closing, flags=re.IGNORECASE | re.VERBOSE
+    #     ),
+    #     html[last_index:],
+    # )
 
 
 def is_ignored_block_closing(config: Config, item: str) -> bool:
@@ -101,6 +190,22 @@ def inside_template_block(config: Config, html: str, match: re.Match) -> bool:
     )
 
 
+def inside_ignored_linter_block(config: Config, html: str, match: re.Match) -> bool:
+    """Check if a re.Match is inside of a ignored linter block."""
+    return any(
+        ignored_match.start(0) <= match.start() and match.end(0) <= ignored_match.end()
+        for ignored_match in list(
+            re.finditer(
+                re.compile(
+                    config.ignored_linter_blocks,
+                    re.DOTALL | re.IGNORECASE | re.VERBOSE | re.MULTILINE,
+                ),
+                html,
+            )
+        )
+    )
+
+
 def inside_ignored_block(config: Config, html: str, match: re.Match) -> bool:
     """Do not add whitespace if the tag is in a non indent block."""
     return any(
@@ -117,6 +222,22 @@ def inside_ignored_block(config: Config, html: str, match: re.Match) -> bool:
         + list(
             re.finditer(
                 re.compile(config.ignored_inline_blocks, re.IGNORECASE | re.VERBOSE),
+                html,
+            )
+        )
+    )
+
+
+def child_of_unformatted_block(config: Config, html: str, match: re.Match) -> bool:
+    """Do not add whitespace if the tag is in a non indent block."""
+    return any(
+        ignored_match.start(0) < match.start() and match.end(0) <= ignored_match.end()
+        for ignored_match in list(
+            re.finditer(
+                re.compile(
+                    config.unformatted_blocks,
+                    re.DOTALL | re.IGNORECASE | re.VERBOSE | re.MULTILINE,
+                ),
                 html,
             )
         )
@@ -190,7 +311,7 @@ def inside_ignored_rule(config: Config, html: str, match: re.Match, rule: str) -
                     ignored_match.start(0) <= match.start()
                     and match.start() <= ignored_match.end()
                 )
-                or ignored_match.group(1).strip() == ""
+                or not ignored_match.group(1).strip()
                 and (
                     ignored_match.start(0) <= match.end()
                     and match.end() <= ignored_match.end()
