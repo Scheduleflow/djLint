@@ -326,7 +326,7 @@ def indent_html(rawcode: str, config: Config) -> str:
 
         if config.profile == "jshtml":
             func = partial(_format_jshtml_tags, indent, indent_level, config)
-            tmp = re.sub(r"([^\n\r]*)({{\s*)([\s\S]*?)(\s*}})", func, tmp)
+            tmp = re.sub(r"([^\n\r]*?)({{\s*)([\s\S]*?)(\s*}})", func, tmp)
 
         beautified_code = beautified_code + tmp
 
@@ -419,7 +419,7 @@ def indent_html(rawcode: str, config: Config) -> str:
             beautified_code,
         )
 
-    if config.no_function_formatting is False:
+    if config.no_function_formatting is False and config.profile != "jshtml":
         func = partial(format_function, config, beautified_code)
         # format function contents
         beautified_code = re.sub(
