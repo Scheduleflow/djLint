@@ -141,7 +141,7 @@ date: Last Modified
 {{ "index_add_badge" | i18n }} <code>readme.md</code>:
 
 {% highlight "md" %}
-[![Code style: djLint](https://img.shields.io/badge/html%20style-djLint-blue.svg)](https://github.com/Riverside-Healthcare/djlint)
+[![Code style: djLint](https://img.shields.io/badge/html%20style-djLint-blue.svg)](https://github.com/djlint/djlint)
 {% endhighlight %}
 
 {{ "index_add_badge" | i18n }} <code>readme.rst</code>:
@@ -149,12 +149,12 @@ date: Last Modified
 {% highlight "md" %}
 
    .. image:: https://img.shields.io/badge/html%20style-djLint-blue.svg
-      :target: https://github.com/Riverside-Healthcare/djlint
+      :target: https://github.com/djlint/djlint
 {% endhighlight %}
 
 <p>{{ "index_looks_like" | i18n }}</p>
 
-<figure class="image" style="max-width:120px;"><img width="120" height="22.64" src="https://img.shields.io/badge/html%20style-djLint-blue.svg" alt="https://github.com/Riverside-Healthcare/djlint" /></figure>
+<figure class="image" style="max-width:120px;"><img width="120" height="22.64" src="https://img.shields.io/badge/html%20style-djLint-blue.svg" alt="https://github.com/djlint/djlint" /></figure>
 
 </div>
 <div class="container has-text-centered mb-5">
@@ -163,16 +163,13 @@ date: Last Modified
 {{ "contributing_message" | i18n | safe }}</p>
 
 {% highlight "bash" %}
-# install poetry
-curl -sSL https://install.python-poetry.org | python3 -
+# install uv https://docs.astral.sh/uv/getting-started/installation/
 
 # install project deps
-poetry install
+uv sync
 
 # run tests
-poetry run pytest tests
-# or
-poetry run tox -e test-fast
+uv run pytest
 {% endhighlight %}
 </div>
 </div>

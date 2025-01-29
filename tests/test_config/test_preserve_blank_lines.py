@@ -2,12 +2,20 @@
 
 --preserve-blank-lines
 
-poetry run pytest tests/test_config/test_preserve_blank_lines.py
+uv run pytest tests/test_config/test_preserve_blank_lines.py
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from src.djlint.reformat import formatter
+from djlint.reformat import formatter
 from tests.conftest import config_builder, printer
+
+if TYPE_CHECKING:
+    from typing_extensions import Any
 
 test_data = [
     pytest.param(
@@ -87,8 +95,8 @@ test_data = [
         id="network stuff",
     ),
     pytest.param(
-        ("{% block someblock %}{% endblock %}\n" "<br />\n" "<br />\n"),
-        ("{% block someblock %}{% endblock %}\n" "<br />\n" "<br />\n"),
+        ("{% block someblock %}{% endblock %}\n<br />\n<br />\n"),
+        ("{% block someblock %}{% endblock %}\n<br />\n<br />\n"),
         ({"preserve_blank_lines": True}),
         id="whitespace test",
     ),
@@ -98,11 +106,17 @@ test_data = [
         ({"preserve_blank_lines": True}),
         id="whitespace test",
     ),
+    pytest.param(
+        ("<div>\n\t\n\t<div>\n\t\n\t</div>\n\t\n</div>"),
+        ("<div>\n\n    <div></div>\n\n</div>\n"),
+        ({"preserve_blank_lines": True}),
+        id="whitespace test with tabs",
+    ),
 ]
 
 
 @pytest.mark.parametrize(("source", "expected", "args"), test_data)
-def test_base(source, expected, args):
+def test_base(source: str, expected: str, args: dict[str, Any]) -> None:
     output = formatter(config_builder(args), source)
 
     printer(expected, source, output)

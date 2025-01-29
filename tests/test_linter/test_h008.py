@@ -1,51 +1,56 @@
 """Test linter code H008.
 
-poetry run pytest tests/test_linter/test_h008.py
+uv run pytest tests/test_linter/test_h008.py
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from src.djlint.lint import linter
+from djlint.lint import linter
 from tests.conftest import lint_printer
+
+if TYPE_CHECKING:
+    from djlint.settings import Config
+    from djlint.types import LintError
 
 test_data = [
     pytest.param(
         ("<div class='test'>"),
-        (
-            [
-                {
-                    "code": "H008",
-                    "line": "1:0",
-                    "match": "<div class='test'",
-                    "message": "Attributes should be double quoted.",
-                },
-                {
-                    "code": "H025",
-                    "line": "1:0",
-                    "match": "<div class='test'>",
-                    "message": "Tag seems to be an orphan.",
-                },
-            ]
-        ),
+        ([
+            {
+                "code": "H008",
+                "line": "1:0",
+                "match": "<div class='test'",
+                "message": "Attributes should be double quoted.",
+            },
+            {
+                "code": "H025",
+                "line": "1:0",
+                "match": "<div class='test'>",
+                "message": "Tag seems to be an orphan.",
+            },
+        ]),
         id="one",
     ),
     pytest.param(
         ("<div class='test\nclass-two'>"),
-        (
-            [
-                {
-                    "code": "H008",
-                    "line": "1:0",
-                    "match": "<div class='test\ncla",
-                    "message": "Attributes should be double quoted.",
-                },
-                {
-                    "code": "H025",
-                    "line": "1:0",
-                    "match": "<div class='test\ncla",
-                    "message": "Tag seems to be an orphan.",
-                },
-            ]
-        ),
+        ([
+            {
+                "code": "H008",
+                "line": "1:0",
+                "match": "<div class='test\ncla",
+                "message": "Attributes should be double quoted.",
+            },
+            {
+                "code": "H025",
+                "line": "1:0",
+                "match": "<div class='test\ncla",
+                "message": "Tag seems to be an orphan.",
+            },
+        ]),
         id="line break",
     ),
     pytest.param(
@@ -67,14 +72,16 @@ test_data = [
 
 
 @pytest.mark.parametrize(("source", "expected"), test_data)
-def test_base(source, expected, basic_config):
+def test_base(
+    source: str, expected: list[LintError], basic_config: Config
+) -> None:
     filename = "test.html"
     output = linter(basic_config, source, filename, filename)
 
     lint_printer(source, expected, output[filename])
 
-    mismatch = list(filter(lambda x: x not in expected, output[filename])) + list(
-        filter(lambda x: x not in output[filename], expected)
+    mismatch = (
+        *(x for x in output[filename] if x not in expected),
+        *(x for x in expected if x not in output[filename]),
     )
-
-    assert len(mismatch) == 0
+    assert not mismatch

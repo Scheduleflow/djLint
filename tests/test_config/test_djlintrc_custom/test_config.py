@@ -1,17 +1,23 @@
 """Test djlintrc custom config.
 
-poetry run pytest tests/test_config/test_djlintrc_custom
+uv run pytest tests/test_config/test_djlintrc_custom
 
 """
+
+from __future__ import annotations
+
 from pathlib import Path
 
-from src.djlint.settings import Config
+import pytest
+
+from djlint.settings import Config
 
 
-def test_custom() -> None:
+@pytest.mark.parametrize("config_path", ["djlint-cust.toml", ".djlint-cust"])
+def test_custom(config_path: str) -> None:
     config = Config(
         str(Path(__file__).parent / "blank.html"),
-        configuration=str(Path(__file__).parent / ".djlint-cust"),
+        configuration=Path(__file__).parent / config_path,
     )
 
     print(config.exclude)
@@ -30,7 +36,10 @@ def test_custom() -> None:
     assert config.ignore_case is True
     assert config.include == "H014,H015"
     assert config.indent == 4 * " "
-    assert config.linter_output_format == "{filename}:{line}: {code} {message} {match}"
+    assert (
+        config.linter_output_format
+        == "{filename}:{line}: {code} {message} {match}"
+    )
     assert config.max_attribute_length == 10
     assert config.max_line_length == 120
     assert config.preserve_blank_lines is True

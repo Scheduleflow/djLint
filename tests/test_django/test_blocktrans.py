@@ -1,6 +1,6 @@
 """Test django blocktrans(late) tag.
 
-poetry run pytest tests/test_django/test_blocktrans.py
+uv run pytest tests/test_django/test_blocktrans.py
 
 blocktrans/late contents cannot be touched.
 
@@ -11,20 +11,36 @@ leading tag can be indented, but not trailing tag.
 blocktrans/late "trimmed" can be fully formatted and are in separate tests
 
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from src.djlint.reformat import formatter
+from djlint.reformat import formatter
 from tests.conftest import printer
+
+if TYPE_CHECKING:
+    from djlint.settings import Config
 
 test_data = [
     pytest.param(
-        ("{% blocktranslate %} The width is: {{ width }}{% endblocktranslate %}"),
-        ("{% blocktranslate %} The width is: {{ width }}{% endblocktranslate %}\n"),
+        (
+            "{% blocktranslate %} The width is: {{ width }}{% endblocktranslate %}"
+        ),
+        (
+            "{% blocktranslate %} The width is: {{ width }}{% endblocktranslate %}\n"
+        ),
         id="blocktranslate_no_attr",
     ),
     pytest.param(
-        ("{% blocktranslate  %}The width is: {{ width }} {% endblocktranslate %}"),
-        ("{% blocktranslate  %}The width is: {{ width }} {% endblocktranslate %}\n"),
+        (
+            "{% blocktranslate  %}The width is: {{ width }} {% endblocktranslate %}"
+        ),
+        (
+            "{% blocktranslate  %}The width is: {{ width }} {% endblocktranslate %}\n"
+        ),
         id="blocktranslate_with_attr",
     ),
     pytest.param(
@@ -176,7 +192,7 @@ test_data = [
     ),
     pytest.param(
         ("<p>{% trans 'Please do <b>Blah</b>.' %}</p>\n"),
-        ("<p>\n" "    {% trans 'Please do <b>Blah</b>.' %}\n" "</p>\n"),
+        ("<p>\n    {% trans 'Please do <b>Blah</b>.' %}\n</p>\n"),
         id="blocktrans_indent_3",
     ),
     pytest.param(
@@ -229,7 +245,7 @@ test_data = [
 
 
 @pytest.mark.parametrize(("source", "expected"), test_data)
-def test_base(source, expected, django_config):
+def test_base(source: str, expected: str, django_config: Config) -> None:
     output = formatter(django_config, source)
 
     printer(expected, source, output)

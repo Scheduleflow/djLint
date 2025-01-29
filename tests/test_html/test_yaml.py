@@ -1,11 +1,19 @@
 """Test yaml front matter.
 
-poetry run pytest tests/test_html/test_yaml.py
+uv run pytest tests/test_html/test_yaml.py
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from src.djlint.reformat import formatter
+from djlint.reformat import formatter
 from tests.conftest import config_builder, printer
+
+if TYPE_CHECKING:
+    from typing_extensions import Any
 
 test_data = [
     pytest.param(
@@ -54,8 +62,8 @@ test_data = [
         id="valid",
     ),
     pytest.param(
-        ("---\n" "layout: <div><div></div></div>\n" "---\n" "<div></div>\n"),
-        ("---\n" "layout: <div><div></div></div>\n" "---\n" "\n" "<div></div>\n"),
+        ("---\nlayout: <div><div></div></div>\n---\n<div></div>\n"),
+        ("---\nlayout: <div><div></div></div>\n---\n\n<div></div>\n"),
         ({}),
         id="more",
     ),
@@ -80,26 +88,26 @@ test_data = [
         id="custom_parser",
     ),
     pytest.param(
-        ("---\n" "---\n" "<h1>\n" "  Hello world!</h1>\n"),
-        ("---\n" "---\n" "\n" "<h1>Hello world!</h1>\n"),
+        ("---\n---\n<h1>\n  Hello world!</h1>\n"),
+        ("---\n---\n\n<h1>Hello world!</h1>\n"),
         ({}),
         id="empty",
     ),
     pytest.param(
-        ("---\n" "---\n" "<div>\n" "---\n" "</div>\n"),
-        ("---\n" "---\n" "\n" "<div>---</div>\n"),
+        ("---\n---\n<div>\n---\n</div>\n"),
+        ("---\n---\n\n<div>---</div>\n"),
         ({}),
         id="empty_2",
     ),
     pytest.param(
-        ("---\n" "---\n\n\n" "<div>\n" "---\n" "</div>\n"),
-        ("---\n" "---\n" "\n" "<div>---</div>\n"),
+        ("---\n---\n\n\n<div>\n---\n</div>\n"),
+        ("---\n---\n\n<div>---</div>\n"),
         ({}),
         id="blank_lines",
     ),
     pytest.param(
-        ("---\n" "---\n\n\n\n" "{{ this }}\n"),
-        ("---\n" "---\n" "\n" "{{ this }}\n"),
+        ("---\n---\n\n\n\n{{ this }}\n"),
+        ("---\n---\n\n{{ this }}\n"),
         ({}),
         id="blank_lines_2",
     ),
@@ -140,8 +148,8 @@ test_data = [
         id="issue_9042",
     ),
     pytest.param(
-        ("---\n" "---\n\n\n\n" "{{ this }}\n"),
-        ("---\n" "---\n" "{{ this }}\n"),
+        ("---\n---\n\n\n\n{{ this }}\n"),
+        ("---\n---\n{{ this }}\n"),
         ({"no_line_after_yaml": True}),
         id="blank_lines_2",
     ),
@@ -149,7 +157,7 @@ test_data = [
 
 
 @pytest.mark.parametrize(("source", "expected", "args"), test_data)
-def test_base(source, expected, args):
+def test_base(source: str, expected: str, args: dict[str, Any]) -> None:
     output = formatter(config_builder(args), source)
 
     printer(expected, source, output)

@@ -36,7 +36,7 @@ Note that these predefined hooks are sometimes too conservative in the inputs th
 
 ```yaml
 repos:
-  - repo: https://github.com/Riverside-Healthcare/djLint
+  - repo: https://github.com/djlint/djLint
     rev: v{{ djlint_version }}
     hooks:
       - id: djlint-reformat-django
@@ -47,15 +47,15 @@ repos:
 
 ```yaml
 repos:
-  - repo: https://github.com/Riverside-Healthcare/djLint
+  - repo: https://github.com/djlint/djLint
     rev: v{{ djlint_version }}
     hooks:
       - id: djlint-reformat-handlebars
         files: "\\.html"
-        types_or: ['html']
+        types_or: ["html"]
       - id: djlint-handlebars
         files: "\\.html"
-        types_or: ['html']
+        types_or: ["html"]
 ```
 
 You can use the `files` or `exclude` parameters to constrain each hook to its own directory, allowing you to support multiple template languages within the same repo.
@@ -77,35 +77,30 @@ Ensure djLint is installed in your global python, or on your `PATH`.
 
 ::: content
 
-- [GitHub repository](https://github.com/monosans/djlint-vscode)
+- [GitHub repository](https://github.com/djlint/djlint-vscode)
 - [VS Marketplace page](https://marketplace.visualstudio.com/items?itemName=monosans.djlint)
 - [Open VSX page](https://open-vsx.org/extension/monosans/djlint)
   :::
 
 ## neovim
 
-djLint can use used as formatter in neovim using the `null-ls` plugin.
+djLint can be used as linter and formatter in neovim.
+
+Using `none-ls` plugin.
 
 ::: content
 
-- [GitHub repository](https://github.com/jose-elias-alvarez/null-ls.nvim/)
-- [Config example](https://github.com/shaeinst/roshnivim/blob/5d991fcfa1b8f865f9653a98c6d97a829d4a2add/lua/plugins/null-ls_nvim.lua#L84-L91)
+- [GitHub repository](https://github.com/nvimtools/none-ls.nvim)
+- [Lint](https://github.com/nvimtools/none-ls.nvim/blob/main/doc/BUILTINS.md#djlint)
+- [Format](https://github.com/nvimtools/none-ls.nvim/blob/main/doc/BUILTINS.md#djlint-1)
   :::
 
-## coc.nvim
+Using `coc.nvim`.
 
 ::: content
 
 - [npm package](https://www.npmjs.com/package/coc-htmldjango)
   :::
-
-## null-ls.nvim
-
-::: content
-
-- [GitHub repository](https://github.com/jose-elias-alvarez/null-ls.nvim)
-- [Lint](https://github.com/jose-elias-alvarez/null-ls.nvim/blob/main/lua/null-ls/builtins/diagnostics/djlint.lua#L14)
-- [Format](https://github.com/jose-elias-alvarez/null-ls.nvim/blob/main/lua/null-ls/builtins/formatting/djlint.lua#L13)
 
 ## MegaLinter
 

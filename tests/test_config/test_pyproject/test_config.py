@@ -1,11 +1,14 @@
 """Test pyproject.toml config.
 
-poetry run pytest tests/test_config/test_pyproject
+uv run pytest tests/test_config/test_pyproject
 
 """
+
+from __future__ import annotations
+
 from pathlib import Path
 
-from src.djlint.settings import Config
+from djlint.settings import Config
 
 
 def test_profile() -> None:
@@ -26,7 +29,10 @@ def test_profile() -> None:
     assert config.ignore_case is True
     assert config.include == "H014,H015"
     assert config.indent == 3 * " "
-    assert config.linter_output_format == "{code} {message} {match} {filename}:{line}"
+    assert (
+        config.linter_output_format
+        == "{code} {message} {match} {filename}:{line}"
+    )
     assert config.max_attribute_length == 10
     assert config.max_line_length == 120
     assert config.preserve_blank_lines is True

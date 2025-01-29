@@ -36,7 +36,7 @@ djLint можно использовать как [pre-commit](https://pre-commi
 
 ```yaml
 repos:
-  - repo: https://github.com/Riverside-Healthcare/djLint
+  - repo: https://github.com/djlint/djLint
     rev: v{{ djlint_version }}
     hooks:
       - id: djlint-reformat-django
@@ -47,15 +47,15 @@ repos:
 
 ```yaml
 repos:
-  - repo: https://github.com/Riverside-Healthcare/djLint
+  - repo: https://github.com/djlint/djLint
     rev: v{{ djlint_version }}
     hooks:
       - id: djlint-reformat-handlebars
         files: "\\.html"
-        types_or: ['html']
+        types_or: ["html"]
       - id: djlint-handlebars
         files: "\\.html"
-        types_or: ['html']
+        types_or: ["html"]
 ```
 
 Вы можете использовать параметры `files` или `exclude`, чтобы ограничить каждый хук своим каталогом, что позволит вам поддерживать несколько языков шаблонов в одном репозитории.
@@ -77,7 +77,7 @@ djLint можно использовать в качестве плагина Su
 
 ::: content
 
-- [GitHub репозиторий](https://github.com/monosans/djlint-vscode)
+- [GitHub репозиторий](https://github.com/djlint/djlint-vscode)
 - [Страница на VS Marketplace](https://marketplace.visualstudio.com/items?itemName=monosans.djlint)
 - [Страница на Open VSX](https://open-vsx.org/extension/monosans/djlint)
   :::

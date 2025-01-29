@@ -2,12 +2,20 @@
 
 --max-attribute-length 4
 
-poetry run pytest tests/test_config/test_max_attribute_length.py
+uv run pytest tests/test_config/test_max_attribute_length.py
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from src.djlint.reformat import formatter
+from djlint.reformat import formatter
 from tests.conftest import config_builder, printer
+
+if TYPE_CHECKING:
+    from typing_extensions import Any
 
 test_data = [
     pytest.param(
@@ -89,11 +97,29 @@ test_data = [
         ({"max_attribute_length": 10000, "max_line_length": 1000}),
         id="longest lines",
     ),
+    pytest.param(
+        ("<tag-looooong></tag-looooong>\n"),
+        ("<tag-looooong>\n</tag-looooong>\n"),
+        ({"max_attribute_length": 3, "custom_html": "[\\w\\-]+"}),
+        id="long tag custom_html",
+    ),
+    pytest.param(
+        (
+            '<option data-json=\'{ "icon": "<img class=\\"ss\\">" }\' {% if True %}selected{% endif %}>'
+        ),
+        (
+            '<option data-json=\'{ "icon": "<img class=\\"ss\\">" }\'\n'
+            "    {% if True %}selected{% endif %}\n"
+            "    >\n"
+        ),
+        ({"max_attribute_length": 1}),
+        id="with_html_tag_in_attribute_escaped_and_template_tag",
+    ),
 ]
 
 
 @pytest.mark.parametrize(("source", "expected", "args"), test_data)
-def test_base(source, expected, args):
+def test_base(source: str, expected: str, args: dict[str, Any]) -> None:
     output = formatter(config_builder(args), source)
 
     printer(expected, source, output)

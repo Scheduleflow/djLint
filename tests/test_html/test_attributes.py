@@ -1,11 +1,19 @@
 """Tests for attributes.
 
-poetry run pytest tests/test_html/test_attributes.py
+uv run pytest tests/test_html/test_attributes.py
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from src.djlint.reformat import formatter
+from djlint.reformat import formatter
 from tests.conftest import printer
+
+if TYPE_CHECKING:
+    from djlint.settings import Config
 
 test_data = [
     pytest.param(
@@ -115,8 +123,8 @@ test_data = [
         id="style_before_others",
     ),
     # attributes with space around = are not broken
-    # https://github.com/Riverside-Healthcare/djLint/issues/317
-    # https://github.com/Riverside-Healthcare/djLint/issues/330
+    # https://github.com/djlint/djLint/issues/317
+    # https://github.com/djlint/djLint/issues/330
     pytest.param(
         (
             '<a href = "http://test.test:3000/testtesttesttesttesttesttesttesttesttest">Test</a>\n'
@@ -421,18 +429,18 @@ test_data = [
             "  flex-column flex-lg-row\n"
             "  justify-content-start justify-content-lg-between\n"
             '  align-items-start align-items-lg-center">Foo</div>\n'
-            '<div  class="a-bem-block a-bem-block--with-modifer ">\n'
-            '<div  class="a-bem-block__element a-bem-block__element--with-modifer also-another-block" >\n'
-            '<div  class="a-bem-block__element a-bem-block__element--with-modifer also-another-block__element">\n'
+            '<div  class="a-bem-block a-bem-block--with-modifier ">\n'
+            '<div  class="a-bem-block__element a-bem-block__element--with-modifier also-another-block" >\n'
+            '<div  class="a-bem-block__element a-bem-block__element--with-modifier also-another-block__element">\n'
             "</div></div> </div>\n"
         ),
         (
             '<div class="ProviderMeasuresContainer__heading-row d-flex flex-column flex-lg-row justify-content-start justify-content-lg-between align-items-start align-items-lg-center">\n'
             "    Foo\n"
             "</div>\n"
-            '<div class="a-bem-block a-bem-block--with-modifer ">\n'
-            '    <div class="a-bem-block__element a-bem-block__element--with-modifer also-another-block">\n'
-            '        <div class="a-bem-block__element a-bem-block__element--with-modifer also-another-block__element"></div>\n'
+            '<div class="a-bem-block a-bem-block--with-modifier ">\n'
+            '    <div class="a-bem-block__element a-bem-block__element--with-modifier also-another-block">\n'
+            '        <div class="a-bem-block__element a-bem-block__element--with-modifier also-another-block__element"></div>\n'
             "    </div>\n"
             "</div>\n"
         ),
@@ -921,11 +929,25 @@ test_data = [
         ("<p title=Title>String</p>\n"),
         id="without_quotes",
     ),
+    pytest.param(
+        ('<select data-html="<div></div>" data-normal="hello"></select>'),
+        ('<select data-html="<div></div>" data-normal="hello"></select>\n'),
+        id="with_html_tag_in_attribute",
+    ),
+    pytest.param(
+        (
+            '<select data-json=\'{"html": "<div></div>"}\' data-normal="hello"></select>'
+        ),
+        (
+            '<select data-json=\'{"html": "<div></div>"}\' data-normal="hello"></select>\n'
+        ),
+        id="with_json_html_tag_in_attribute",
+    ),
 ]
 
 
 @pytest.mark.parametrize(("source", "expected"), test_data)
-def test_base(source, expected, basic_config):
+def test_base(source: str, expected: str, basic_config: Config) -> None:
     output = formatter(basic_config, source)
 
     printer(expected, source, output)

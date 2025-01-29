@@ -1,16 +1,7 @@
 {
   "name": "djlint",
-  "version": "1.32.1",
+  "version": "1.36.4",
   "description": "HTML Template Linter and Formatter",
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Riverside-Healthcare/djLint.git"
-  },
-  "files": [],
   "keywords": [
     "html template linter",
     "html template formatter",
@@ -29,43 +20,26 @@
     "angular template linter",
     "angular template formatter"
   ],
-  "scripts": {
-    "format": "prettier --config .prettierrc \"{bin,docs}/**/*.{ts,css,less,scss,js,json,md,yaml,html}\" --write",
-    "postinstall": "python3 -m pip install --upgrade djlint==1.32.1",
-    "pre-commit": "lint-staged",
-    "commit": "git add . && pre-commit run; git add . && npm run pre-commit && cz --no-verify",
-    "test": "xo"
+  "homepage": "https://djlint.com",
+  "bugs": {
+    "url": "https://github.com/djlint/djLint/issues"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/djlint/djLint.git"
+  },
+  "license": "GPL-3.0-or-later",
   "author": {
     "name": "Christopher Pickering",
     "url": "https://going.bg"
   },
-  "license": "GPL-3.0-or-later",
-  "bugs": {
-    "url": "https://github.com/Riverside-Healthcare/djLint/issues"
+  "files": [],
+  "scripts": {
+    "postinstall": "python3 -m pip install --upgrade djlint==1.36.4"
   },
-  "homepage": "https://djlint.com",
   "devDependencies": {
-    "@semantic-release/changelog": "6.0.3",
-    "@semantic-release/commit-analyzer": "10.0.1",
-    "@semantic-release/exec": "6.0.3",
-    "@semantic-release/git": "10.0.1",
-    "@semantic-release/github": "9.0.3",
-    "@semantic-release/npm": "10.0.4",
-    "@semantic-release/release-notes-generator": "11.0.4",
-    "cz-conventional-changelog": "3.3.0",
-    "lint-staged": "13.2.3",
-    "prettier": "^3.0.0",
-    "semantic-release": "21.0.7"
-  },
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/cz-conventional-changelog"
-    }
-  },
-  "lint-staged": {
-    "{bin,docs}/**/*.{ts,css,less,scss,js,json,md,yaml,html}": [
-      "npm run format"
-    ]
+    "@ianvs/prettier-plugin-sort-imports": "4.4.1",
+    "prettier": "3.4.2",
+    "prettier-plugin-packagejson": "2.5.8"
   }
 }

@@ -1,23 +1,23 @@
 """Test nunjucks functions.
 
-poetry run pytest tests/test_nunjucks/test_functions.py
+uv run pytest tests/test_nunjucks/test_functions.py
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
-from src.djlint.reformat import formatter
+from djlint.reformat import formatter
 from tests.conftest import config_builder, printer
+
+if TYPE_CHECKING:
+    from typing_extensions import Any
 
 test_data = [
     pytest.param(
-        (
-            "{{ myfunc({\n"
-            "  bar: {\n"
-            "    baz: {\n"
-            "      cux: 1\n"
-            "    }\n"
-            "  }\n"
-            "})}}"
-        ),
+        ("{{ myfunc({\n  bar: {\n    baz: {\n      cux: 1\n    }\n  }\n})}}"),
         ('{{ myfunc({"bar": {"baz": {"cux": 1}}}) }}\n'),
         ({}),
         id="long line",
@@ -37,7 +37,7 @@ test_data = [
         (
             '{{ item.split("/")[1] }}\n'
             '{{ item.split("/").123 }}\n'
-            # https://github.com/Riverside-Healthcare/djLint/issues/704
+            # https://github.com/djlint/djLint/issues/704
             '{{ item.split("/").bar }}\n'
         ),
         ({}),
@@ -45,42 +45,26 @@ test_data = [
     ),
     pytest.param(
         ("{{ url('foo').foo }}"),
-        # https://github.com/Riverside-Healthcare/djLint/issues/704
+        # https://github.com/djlint/djLint/issues/704
         ('{{ url("foo").foo }}\n'),
         ({}),
         id="function_call_attribute_access",
     ),
     pytest.param(
         ("{{ url('foo').foo().bar[1] }}"),
-        # https://github.com/Riverside-Healthcare/djLint/issues/704
+        # https://github.com/djlint/djLint/issues/704
         ('{{ url("foo").foo().bar[1] }}\n'),
         ({}),
         id="function_call_attribute_access_multiple",
     ),
     pytest.param(
-        (
-            "{{ myfunc({\n"
-            "  bar: {\n"
-            "    baz: {\n"
-            "      cux: 1\n"
-            "    }\n"
-            "  }\n"
-            "})}}"
-        ),
-        ("{{ myfunc({\n" "bar: {\n" "baz: {\n" "cux: 1\n" "}\n" "}\n" "})}}\n"),
+        ("{{ myfunc({\n  bar: {\n    baz: {\n      cux: 1\n    }\n  }\n})}}"),
+        ("{{ myfunc({\nbar: {\nbaz: {\ncux: 1\n}\n}\n})}}\n"),
         ({"no_function_formatting": True}),
         id="disabled",
     ),
     pytest.param(
-        (
-            "{{ myfunc({\n"
-            "  bar: {\n"
-            "    baz: {\n"
-            "      cux: 1\n"
-            "    }\n"
-            "  }\n"
-            "})}}"
-        ),
+        ("{{ myfunc({\n  bar: {\n    baz: {\n      cux: 1\n    }\n  }\n})}}"),
         (
             "{{ myfunc({\n"
             '    "bar": {\n'
@@ -118,24 +102,23 @@ test_data = [
         id="nested",
     ),
     pytest.param(
-        (
-            "{{ myfunc({\n"
-            "  bar: {\n"
-            "    baz: {\n"
-            "      cux: 1\n"
-            "    }\n"
-            "  }\n"
-            "})}"
-        ),
-        ("{{ myfunc({\n" "bar: {\n" "baz: {\n" "cux: 1\n" "}\n" "}\n" "})}\n"),
+        ("{{ myfunc({\n  bar: {\n    baz: {\n      cux: 1\n    }\n  }\n})}"),
+        ("{{ myfunc({\nbar: {\nbaz: {\ncux: 1\n}\n}\n})}\n"),
         ({}),
         id="broken",
+    ),
+    pytest.param(
+        ("{{ url(object) }}"),
+        # https://github.com/djlint/djLint/issues/756
+        ("{{ url(object) }}\n"),
+        ({}),
+        id="function param is python keyword",
     ),
 ]
 
 
 @pytest.mark.parametrize(("source", "expected", "args"), test_data)
-def test_base(source, expected, args, nunjucks_config):
+def test_base(source: str, expected: str, args: dict[str, Any]) -> None:
     args["profile"] = "nunjucks"
     output = formatter(config_builder(args), source)
 

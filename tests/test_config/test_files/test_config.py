@@ -8,63 +8,89 @@ run::
    pytest tests/test_config/test_files/test_config.py::test_global_override
 
 """
-# pylint: disable=C0116
 
-import os
+from __future__ import annotations
 
-from click.testing import CliRunner
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-from src.djlint import main as djlint
+import pytest
+
+from djlint import main as djlint
+
+if TYPE_CHECKING:
+    from click.testing import CliRunner
 
 
-def test_check_custom_file_src(runner: CliRunner) -> None:
+@pytest.mark.parametrize(
+    "config_path", [".djlintrc_global", "djlint_toml_global.toml"]
+)
+def test_check_custom_file_src(runner: CliRunner, config_path: str) -> None:
     result = runner.invoke(
         djlint,
-        [
+        (
             "-",
             "--check",
             "--configuration",
-            "tests/test_config/test_files/.djlintrc_global",
-        ],
+            f"tests/test_config/test_files/{config_path}",
+        ),
     )
     assert """Checking 2/2 files""" in result.output
 
 
-def test_lint_custom_file_src(runner: CliRunner) -> None:
+@pytest.mark.parametrize(
+    "config_path", [".djlintrc_global", "djlint_toml_global.toml"]
+)
+def test_lint_custom_file_src(runner: CliRunner, config_path: str) -> None:
     result = runner.invoke(
         djlint,
-        [
+        (
             "-",
             "--lint",
             "--configuration",
-            "tests/test_config/test_files/.djlintrc_global",
-        ],
+            f"tests/test_config/test_files/{config_path}",
+        ),
     )
     assert """Linting 2/2 files""" in result.output
 
 
-def test_reformat_custom_file_src(runner: CliRunner) -> None:
+@pytest.mark.parametrize(
+    "config_path", [".djlintrc_global", "djlint_toml_global.toml"]
+)
+def test_reformat_custom_file_src(runner: CliRunner, config_path: str) -> None:
     result = runner.invoke(
         djlint,
-        [
+        (
             "-",
             "--reformat",
             "--configuration",
-            "tests/test_config/test_files/.djlintrc_global",
-        ],
+            f"tests/test_config/test_files/{config_path}",
+        ),
     )
     assert """Reformatting 2/2 files""" in result.output
 
 
-def test_global_override(runner: CliRunner) -> None:
+@pytest.mark.parametrize(
+    ("config_path_local", "config_path_global", "config_data"),
+    [
+        ("djlint.toml", "djlint_toml_global.toml", b'ignore = "H025"'),
+        (".djlintrc", ".djlintrc_global", b'{"ignore": "H025"}'),
+    ],
+)
+def test_global_override(
+    runner: CliRunner,
+    config_path_local: str,
+    config_path_global: str,
+    config_data: bytes,
+) -> None:
     result = runner.invoke(
         djlint,
-        [
+        (
             "-",
             "--lint",
             "--configuration",
-            "tests/test_config/test_files/.djlintrc_global",
-        ],
+            f"tests/test_config/test_files/{config_path_global}",
+        ),
     )
     # fails
     assert result.exit_code == 1
@@ -72,14 +98,14 @@ def test_global_override(runner: CliRunner) -> None:
     # check cli override
     result = runner.invoke(
         djlint,
-        [
+        (
             "-",
             "--lint",
             "--configuration",
-            "tests/test_config/test_files/.djlintrc_global",
+            f"tests/test_config/test_files/{config_path_global}",
             "--ignore",
             "H025,H020",
-        ],
+        ),
     )
     # passes
     assert result.exit_code == 0
@@ -88,33 +114,33 @@ def test_global_override(runner: CliRunner) -> None:
 
     # create project settings folder
     # add a gitignore file
-    with open(
-        "tests/test_config/test_files/.djlintrc", "w", encoding="utf8"
-    ) as local_settings:
-        local_settings.write('{ "ignore":"H025"}')
+    djlintrc_path = Path(
+        "tests", "test_config", "test_files", config_path_local
+    )
+    djlintrc_path.write_bytes(config_data)
 
     result = runner.invoke(
         djlint,
-        [
+        (
             "tests/test_config/test_files/test_two.html",
             "--lint",
             "--configuration",
-            "tests/test_config/test_files/.djlintrc_global",
-        ],
+            f"tests/test_config/test_files/{config_path_global}",
+        ),
     )
 
     result_two = runner.invoke(
         djlint,
-        [
+        (
             "tests/test_config/test_files/test.html",
             "--lint",
             "--configuration",
-            "tests/test_config/test_files/.djlintrc_global",
-        ],
+            f"tests/test_config/test_files/{config_path_global}",
+        ),
     )
     try:
-        os.remove("tests/test_config/test_files/.djlintrc")
-    except BaseException as e:
+        djlintrc_path.unlink()
+    except Exception as e:
         print("cleanup failed")
         print(e)
 
