@@ -8,10 +8,6 @@ from typing import TYPE_CHECKING
 import json5 as json
 import regex as re
 
-import jsbeautifier
-
-from jsbeautifier.javascript.options import BeautifierOptions
-
 from djlint.formatter.attributes import format_attributes
 from djlint.helpers import (
     RE_FLAGS_IMSX,
@@ -24,6 +20,8 @@ from djlint.helpers import (
     is_script_style_block_closing,
     is_script_style_block_opening,
 )
+
+from djlint.formatter.jshtml import format_jshtml_vars, format_jshtml_tags
 
 if TYPE_CHECKING:
     from djlint.settings import Config
@@ -289,8 +287,10 @@ def indent_html(rawcode: str, config: Config) -> str:
                 is_block_raw = False
 
         if config.profile == "jshtml":
-            func = partial(_format_jshtml_tags, indent, indent_level, config)
+            func = partial(format_jshtml_vars, indent, indent_level, config)
             tmp = re.sub(r"([^\n\r]*?)({{\s*)([\s\S]*?)(\s*}})", func, tmp)
+            func = partial(format_jshtml_tags, indent, indent_level, config)
+            tmp = re.sub(r"([^\n\r]*?)({%\s*)([\s\S]*?)(\s*%})", func, tmp)
 
         # detect the outer quotes for jinja
         if config.profile == "jinja":
@@ -450,27 +450,3 @@ def indent_html(rawcode: str, config: Config) -> str:
         beautified_code = beautified_code.lstrip()
 
     return beautified_code.rstrip() + "\n"
-
-
-def _format_jshtml_tags(
-        indent: str,
-        indent_level: int,
-        config: Config,
-        match: re.Match
-) -> str:
-
-    lead = match.group(1)
-
-    js = match.group(3)
-
-    if not js:
-        return match.group()
-
-    opts = BeautifierOptions({
-        "indent_size": len(indent),
-        "indent_level": 0,
-        "preserve_newlines": False,
-        "wrap_line_length": config.max_line_length,
-    })
-    lines = jsbeautifier.beautify(js, opts).splitlines()
-    return lead + "{{ " + ('\n' + ' ' * len(lead)).join(lines) + " }}"
