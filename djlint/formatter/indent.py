@@ -292,7 +292,6 @@ def indent_html(rawcode: str, config: Config) -> str:
             func = partial(_format_jshtml_tags, indent, indent_level, config)
             tmp = re.sub(r"([^\n\r]*?)({{\s*)([\s\S]*?)(\s*}})", func, tmp)
 
-        beautified_code = beautified_code + tmp
         # detect the outer quotes for jinja
         if config.profile == "jinja":
             for match in re.finditer(
