@@ -8,12 +8,7 @@ from jsbeautifier.javascript.options import BeautifierOptions
 JSHTML_USE_TAG_ARG_FORMAT = re.compile(r'^("[^"]*")\s+(.*)$')
 
 
-def format_jshtml_vars(
-        indent: str,
-        indent_level: int,
-        config: Config,
-        match: re.Match
-) -> str:
+def format_jshtml_vars(indent, indent_level, config, match):
 
     lead = match.group(1)
 
@@ -22,22 +17,12 @@ def format_jshtml_vars(
     if not js:
         return match.group()
 
-    opts = BeautifierOptions({
-        "indent_size": len(indent),
-        "indent_level": 0,
-        "preserve_newlines": False,
-        "wrap_line_length": config.max_line_length,
-    })
-    lines = jsbeautifier.beautify(js, opts).splitlines()
+    opts = _build_js_beautifier_options(len(indent), config.max_line_length)
+    lines = _beautify_js(js, opts)
     return lead + "{{ " + ('\n' + ' ' * len(lead)).join(lines) + " }}"
 
 
-def format_jshtml_tags(
-        indent: str,
-        indent_level: int,
-        config: Config,
-        match: re.Match
-) -> str:
+def format_jshtml_tags(indent, indent_level, config, match):
 
     lead = match.group(1)
 
@@ -47,14 +32,18 @@ def format_jshtml_tags(
         return match.group()
 
     if len(tag_content) + 6 + len(lead) > config.max_line_length:
-        lines = _split_jshtml_tag_lines(tag_content)
         inner_indent = len(lead) + config.indent_size * 2
+        js_options = _build_js_beautifier_options(
+            config.indent_size,
+            max(20, config.max_line_length - inner_indent),
+        )
+        lines = _split_jshtml_tag_lines(tag_content, js_options)
         return lead + "{% " + ('\n' + ' ' * inner_indent).join(lines) + " %}"
 
     return lead + "{% " + tag_content + " %}"
 
 
-def _split_jshtml_tag_lines(tag_content: str) -> str:
+def _split_jshtml_tag_lines(tag_content, js_options):
 
     parts = tag_content.split(maxsplit=1)
 
@@ -68,21 +57,51 @@ def _split_jshtml_tag_lines(tag_content: str) -> str:
         if not tag_args:
             return [tag_content]
         try:
-            return [tag_name, tag_args[1]] + _parse_attr_expr(tag_args[2])
+            attrs = _parse_attr_expr(tag_args[2])
+            formatted_attrs = _format_attrs(attrs, js_options)
+            return [tag_name, tag_args[1]] + formatted_attrs
         except _InvalidJSHTML:
             return [tag_content]
 
     return [tag_content]
 
 
+def _format_attrs(attrs, js_options):
+
+    result = []
+    indent = " " * js_options.indent_size
+
+    for attr_name, attr_value in attrs:
+
+        attr_len = len(attr_name) + 1 + len(attr_value)
+        if (attr_len > js_options.wrap_line_length and attr_value[0] == "("):
+            # A special formatting rule for long js expressions
+            lines = _beautify_js(attr_value[1:-1].strip(), js_options)
+            lines = [
+                "(",
+                *(indent + line for line in lines),
+                ")",
+            ]
+        else:
+            lines = _beautify_js(attr_value, js_options)
+
+        for line_index, line in enumerate(lines):
+            if line_index == 0:
+                result.append(f"{attr_name}={line}")
+            else:
+                result.append(line)
+
+    return result
+
+
 def _parse_attr_expr(s):
     pos = 0
     attrs = []
     while True:
-        attr, pos = _parse_next_attr_pair(s, pos)
-        if attr is None:
+        attr_name, attr_value, pos = _parse_next_attr_pair(s, pos)
+        if attr_name is None:
             break
-        attrs.append(attr)
+        attrs.append((attr_name, attr_value))
     return attrs
 
 
@@ -95,10 +114,10 @@ def _consume_space(s, pos):
 def _parse_next_attr_pair(s, pos):
     name_start = _consume_space(s, pos)
     if name_start == len(s):
-        return None, -1
+        return None, None, -1
     name, value_start = _parse_attr_name(s, name_start)
     value, value_end = _parse_attr_value(s, value_start)
-    return f"{name}={value}", value_end
+    return name, value, value_end
 
 
 def _parse_attr_name(s, pos):
@@ -153,3 +172,16 @@ def _parse_attr_value(s, pos):
 
 class _InvalidJSHTML(Exception):
     pass
+
+
+def _build_js_beautifier_options(indent_size, max_line_length):
+    return BeautifierOptions({
+        "indent_size": indent_size,
+        "indent_level": 0,
+        "preserve_newlines": False,
+        "wrap_line_length": max_line_length,
+    })
+
+
+def _beautify_js(js_str, options):
+    return jsbeautifier.beautify(js_str, options).splitlines()
