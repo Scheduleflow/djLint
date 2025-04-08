@@ -5,7 +5,8 @@ from djlint.settings import Config
 from jsbeautifier.javascript.options import BeautifierOptions
 
 
-JSHTML_USE_TAG_ARG_FORMAT = re.compile(r'^("[^"]*")\s+(.*)$')
+USE_TAG_FORMAT = re.compile(r'^("[^"]*")\s+(.*)$')
+FIELD_TAG_FORMAT = re.compile(r'^(\S+)\s+(.*)$')
 
 
 def format_jshtml_vars(indent, indent_level, config, match):
@@ -35,7 +36,7 @@ def format_jshtml_tags(indent, indent_level, config, match):
         inner_indent = len(lead) + config.indent_size * 2
         js_options = _build_js_beautifier_options(
             config.indent_size,
-            max(20, config.max_line_length - inner_indent),
+            max(20, config.max_line_length + 1 - inner_indent),
         )
         lines = _split_jshtml_tag_lines(tag_content, js_options)
         return lead + "{% " + ('\n' + ' ' * inner_indent).join(lines) + " %}"
@@ -52,8 +53,11 @@ def _split_jshtml_tag_lines(tag_content, js_options):
 
     tag_name = parts[0]
 
-    if tag_name == "use" or tag_name == "load":
-        tag_args = JSHTML_USE_TAG_ARG_FORMAT.match(parts[1])
+    if tag_name in ("use", "load", "field"):
+        if tag_name == "field":
+            tag_args = FIELD_TAG_FORMAT.match(parts[1])
+        else:
+            tag_args = USE_TAG_FORMAT.match(parts[1])
         if not tag_args:
             return [tag_content]
         try:
@@ -69,21 +73,35 @@ def _split_jshtml_tag_lines(tag_content, js_options):
 def _format_attrs(attrs, js_options):
 
     result = []
-    indent = " " * js_options.indent_size
+    indent_size = js_options.indent_size
+    indent = " " * indent_size
+    wrap_length = js_options.wrap_line_length
 
     for attr_name, attr_value in attrs:
 
         attr_len = len(attr_name) + 1 + len(attr_value)
-        if (attr_len > js_options.wrap_line_length and attr_value[0] == "("):
+        if (attr_len > wrap_length and attr_value[0] == "("):
             # A special formatting rule for long js expressions
-            lines = _beautify_js(attr_value[1:-1].strip(), js_options)
-            lines = [
-                "(",
-                *(indent + line for line in lines),
-                ")",
-            ]
+            stripped_value = attr_value[1:-1].strip()
+            if stripped_value[0] == "{":
+                lines = _beautify_js(f"({stripped_value})", js_options)
+            else:
+                lines = _beautify_js(stripped_value, js_options)
+                if len(lines) == 1 and len(lines[0]) <= wrap_length:
+                    lines = [f"({lines[0]})"]
+                else:
+                    lines = [
+                        "(",
+                        *(indent + line for line in lines),
+                        ")",
+                    ]
         else:
             lines = _beautify_js(attr_value, js_options)
+            if len(lines) == 3 and len(lines[1]) + indent_size <= wrap_length:
+                if lines[0] == "({" and lines[2] == "})":
+                    lines = [f"({{{lines[1].strip()}}})"]
+                elif lines[0] == "([" and lines[2] == "])":
+                    lines = [f"([{line[1]}])"]
 
         for line_index, line in enumerate(lines):
             if line_index == 0:
